@@ -34,6 +34,20 @@ class MPViewController: UIViewController {
         }
     }
     
+    override func viewWillTransitionToSize(size: CGSize, withTransitionCoordinator coordinator: UIViewControllerTransitionCoordinator) {
+        if (isPresentingScene){
+            if let spriteView:SKView = self.view as? SKView{
+                if let scene = spriteView.scene{
+                    scene.size = size
+                }
+            }
+        }
+    }
+    
+    override func preferredStatusBarStyle() -> UIStatusBarStyle {
+        return UIStatusBarStyle.LightContent
+    }
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.

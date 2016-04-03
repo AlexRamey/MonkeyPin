@@ -1,0 +1,6 @@
+framework module Pods_MonkeyPin {
+  umbrella header "Pods-MonkeyPin-umbrella.h"
+
+  export *
+  module * { export * }
+}

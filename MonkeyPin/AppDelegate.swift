@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import Parse
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -16,6 +17,23 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
         // Override point for customization after application launch.
+        // Initialize Parse.
+        let configuration = ParseClientConfiguration {
+            $0.applicationId = "com.hooapps.alexramey.spring2016.MonkeyPin"
+            $0.server = "http://ec2-52-87-160-169.compute-1.amazonaws.com:1337/parse"
+            $0.clientKey = "165739A5-027A-4200-8E24-DC4831380A3A"
+        }
+        Parse.initializeWithConfiguration(configuration)
+        /*
+        // server test code
+        let testObject = PFObject(className: "GameScore")
+        testObject["score"] = 9000
+        testObject["playerName"] = "Bear Bryant"
+        testObject["cheatMode"] = false
+        testObject.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
+            print("Object has been saved.")
+        }
+        */
         return true
     }
 

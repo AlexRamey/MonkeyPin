@@ -11,6 +11,7 @@ import SpriteKit
 class MPHomeScene: SKScene {
     var contentCreated:Bool = false
     var buttons:[SKSpriteNode] = []
+    var heldButton:SKSpriteNode? = nil
     
     override func didMoveToView(view: SKView) {
         if (self.contentCreated == false){
@@ -82,9 +83,9 @@ class MPHomeScene: SKScene {
             
             // physical movement
             let monkeySpeed:CGFloat = 75.0
-            monkeyNode.position = CGPointMake(32.0, self.buttonPosition(0).y + self.buttonSize().height/2.0 + monkeyNode.frame.size.height/2.0)
-            let horizontalDistance:CGFloat = self.frame.width - 64.0
-            let motion = SKAction.sequence([SKAction.moveByX(horizontalDistance, y: 0.0, duration: (Double)(horizontalDistance/monkeySpeed)), SKAction.scaleXTo(-1.0, duration: 0.0), SKAction.moveByX(-1.0 * horizontalDistance, y: 0.0, duration: (Double)(horizontalDistance/monkeySpeed)),SKAction.scaleXTo(1.0, duration: 0.0),  SKAction.moveByX(horizontalDistance/2.0, y: 0.0, duration: (Double)((horizontalDistance/2.0)/monkeySpeed))])
+            monkeyNode.position = CGPointMake(self.buttonPosition(0).x - (self.buttonSize().width/2.0), self.buttonPosition(0).y + self.buttonSize().height/2.0 + monkeyNode.frame.size.height/2.0)
+            let horizontalDistance:CGFloat = self.buttonPosition(2).x - self.buttonPosition(0).x + self.buttonSize().width
+            let motion = SKAction.sequence([SKAction.scaleXTo(1.0, duration: 0.0),SKAction.moveByX(horizontalDistance, y: 0.0, duration: (Double)(horizontalDistance/monkeySpeed)), SKAction.scaleXTo(-1.0, duration: 0.0), SKAction.moveByX(-1.0 * horizontalDistance, y: 0.0, duration: (Double)(horizontalDistance/monkeySpeed)),SKAction.scaleXTo(1.0, duration: 0.0),  SKAction.moveByX(horizontalDistance/2.0, y: 0.0, duration: (Double)((horizontalDistance/2.0)/monkeySpeed))])
             
             // upon completion, stop the walking animation and make the monkey face the user
             monkeyNode.runAction(motion, completion: { () -> Void in
@@ -117,7 +118,7 @@ class MPHomeScene: SKScene {
     
     func updateButtons(){
         if (self.buttons.count != 0){
-            for var index = 0; index < 3; ++index{
+            for index in 0 ..< 3{
                 self.buttons[index].size = self.buttonSize()
                 self.buttons[index].position = self.buttonPosition(index)
             }
@@ -141,7 +142,6 @@ class MPHomeScene: SKScene {
     }
     
     func buttonPosition(btnIndex: Int)->CGPoint{
-        
         if (self.frame.height >= self.frame.width){
             return self.tallScreenButtonPosition(btnIndex)
         }else{
@@ -187,17 +187,82 @@ class MPHomeScene: SKScene {
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
         for touch: AnyObject in touches {
-            // Get location of the tap in this node
             let location = touch.locationInNode(self)
-            // Get the child node at this location (or this node if there is no child)
-            let tappedNode = self.nodeAtPoint(location)
-            // Check if the (child) node is a button and respond if necessary
-            if tappedNode.name == "playButtonNode" {
-                print("play tapped!")
-            }else if tappedNode.name == "scoresButtonNode"{
-                print("scores tapped!")
-            }else if tappedNode.name == "settingsButtonNode"{
-                print("settings tapped!")
+            if let tappedNode = self.nodeAtPoint(location) as? SKSpriteNode{
+                // Check if the (child) node is a button and respond if necessary
+                if ((tappedNode.name == "playButtonNode") || (tappedNode.name == "scoresButtonNode") ||
+                    (tappedNode.name == "settingsButtonNode")){
+                    setImageForButton(tappedNode, isPressed: true)
+                    self.heldButton = tappedNode
+                }
+            }
+        }
+    }
+    
+    override func touchesEnded(touches: Set<UITouch>, withEvent event: UIEvent?) {
+        for touch: AnyObject in touches {
+            let location = touch.locationInNode(self)
+            if let releasedNode = self.nodeAtPoint(location) as? SKSpriteNode{
+                // Check if the (child) node is a button and respond if necessary
+                if (releasedNode.name == "playButtonNode"){
+                    setImageForButton(releasedNode, isPressed: false)
+                    print("transition to play scene!")
+                }else if (releasedNode.name == "scoresButtonNode"){
+                    setImageForButton(releasedNode, isPressed: false)
+                    print("transition to scores scene!")
+                }else if (releasedNode.name == "settingsButtonNode"){
+                    setImageForButton(releasedNode, isPressed: false)
+                    print("transition to settings scene!")
+                }
+            }
+        }
+    }
+    
+    override func touchesMoved(touches: Set<UITouch>, withEvent event: UIEvent?) {
+        for touch: AnyObject in touches {
+            let location = touch.locationInNode(self)
+            let touchedNode = self.nodeAtPoint(location)
+            // There is currently a focused button
+            if let focusedButton = heldButton{
+                if (touchedNode != focusedButton){
+                    // restore normal image
+                    setImageForButton(focusedButton, isPressed: false)
+                    heldButton = nil
+                }
+            }else{
+                // There is currently not a focused button
+                if let touchedButton = touchedNode as? SKSpriteNode{
+                    if touchedButton.name == "playButtonNode" {
+                        setImageForButton(touchedButton, isPressed: true)
+                        self.heldButton = touchedButton
+                    }else if touchedButton.name == "scoresButtonNode"{
+                        setImageForButton(touchedButton, isPressed: true)
+                        self.heldButton = touchedButton
+                    }else if touchedButton.name == "settingsButtonNode"{
+                        setImageForButton(touchedButton, isPressed: true)
+                        self.heldButton = touchedButton
+                    }
+                }
+            }
+        }
+    }
+    
+    func setImageForButton(btn: SKSpriteNode, isPressed: Bool){
+        if (isPressed){
+            if (btn.name == "playButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "play_btn_pressed")))
+            }else if (btn.name == "scoresButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "scores_btn_pressed")))
+            }else if (btn.name == "settingsButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "settings_btn_pressed")))
+            }
+        }else{
+            if (btn.name == "playButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "play_btn")))
+            }else if (btn.name == "scoresButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "scores_btn")))
+            }else if (btn.name == "settingsButtonNode"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "settings_btn")))
             }
         }
     }

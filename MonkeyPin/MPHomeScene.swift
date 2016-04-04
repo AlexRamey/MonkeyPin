@@ -7,6 +7,7 @@
 //
 
 import SpriteKit
+import Parse    // TODO: delete this import; it's only here for Milestone 1 Demo Purposes
 
 class MPHomeScene: SKScene {
     var contentCreated:Bool = false
@@ -36,6 +37,7 @@ class MPHomeScene: SKScene {
     
     func newHomeScreenLogo()->SKSpriteNode{
         let homeLogo = SKSpriteNode(imageNamed: "home_logo")
+        homeLogo
         homeLogo.name = "homeLogoNode"
         return homeLogo
     }
@@ -206,10 +208,13 @@ class MPHomeScene: SKScene {
                 // Check if the (child) node is a button and respond if necessary
                 if (releasedNode.name == "playButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
+                    saveRandomScore()       // For Demo Purposes Only
                     print("transition to play scene!")
                 }else if (releasedNode.name == "scoresButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
-                    print("transition to scores scene!")
+                    let trans = SKTransition.flipVerticalWithDuration(1.0)
+                    let scoresScene = MPScoresScene(size: self.size)
+                    self.view?.presentScene(scoresScene, transition: trans)
                 }else if (releasedNode.name == "settingsButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
                     print("transition to settings scene!")
@@ -247,6 +252,7 @@ class MPHomeScene: SKScene {
         }
     }
     
+    // helper function
     func setImageForButton(btn: SKSpriteNode, isPressed: Bool){
         if (isPressed){
             if (btn.name == "playButtonNode"){
@@ -264,6 +270,18 @@ class MPHomeScene: SKScene {
             }else if (btn.name == "settingsButtonNode"){
                 btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "settings_btn")))
             }
+        }
+    }
+    
+    // for testing purposes only
+    func saveRandomScore(){
+        let testObject = PFObject(className: "GameScore")
+        let randomScore = Int(arc4random_uniform(10000))
+        testObject["score"] = randomScore
+        testObject["playerName"] = "Demo"
+        testObject["cheatMode"] = false
+        testObject.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
+            print("Another score has been saved with value: \(randomScore)")
         }
     }
 }

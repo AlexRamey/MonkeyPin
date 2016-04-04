@@ -24,16 +24,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
             $0.clientKey = "165739A5-027A-4200-8E24-DC4831380A3A"
         }
         Parse.initializeWithConfiguration(configuration)
-        /*
-        // server test code
-        let testObject = PFObject(className: "GameScore")
-        testObject["score"] = 9000
-        testObject["playerName"] = "Bear Bryant"
-        testObject["cheatMode"] = false
-        testObject.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
-            print("Object has been saved.")
-        }
-        */
         return true
     }
 

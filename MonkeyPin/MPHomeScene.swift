@@ -208,7 +208,10 @@ class MPHomeScene: SKScene {
                 // Check if the (child) node is a button and respond if necessary
                 if (releasedNode.name == "playButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
-                    saveRandomScore()       // For Demo Purposes Only
+                    // saveRandomScore()       // For Demo Purposes Only
+                    let trans = SKTransition.crossFadeWithDuration(1.0)
+                    let gameScene = MPGameScene(size:self.size)
+                    self.view?.presentScene(gameScene, transition:trans)
                     print("transition to play scene!")
                 }else if (releasedNode.name == "scoresButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)

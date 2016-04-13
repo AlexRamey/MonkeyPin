@@ -15,6 +15,7 @@
 		D007CE2D1C9CEC6B00029A14 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = D007CE2B1C9CEC6B00029A14 /* LaunchScreen.storyboard */; };
 		D007CE351C9E3B7E00029A14 /* MPHomeScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D007CE341C9E3B7E00029A14 /* MPHomeScene.swift */; };
 		D0ED37171CB301F6003A3EE8 /* MPScoresScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED37161CB301F6003A3EE8 /* MPScoresScene.swift */; };
+		D0ED37191CB5C66E003A3EE8 /* MPGameScene.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED37181CB5C66E003A3EE8 /* MPGameScene.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		D007CE2E1C9CEC6B00029A14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		D007CE341C9E3B7E00029A14 /* MPHomeScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPHomeScene.swift; sourceTree = "<group>"; };
 		D0ED37161CB301F6003A3EE8 /* MPScoresScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPScoresScene.swift; sourceTree = "<group>"; };
+		D0ED37181CB5C66E003A3EE8 /* MPGameScene.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPGameScene.swift; sourceTree = "<group>"; };
 		E14678F6B98C2F3AD16807DA /* Pods_MonkeyPin.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MonkeyPin.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3FE1F3FF057AF31CFB19267 /* Pods-MonkeyPin.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonkeyPin.release.xcconfig"; path = "Pods/Target Support Files/Pods-MonkeyPin/Pods-MonkeyPin.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -85,6 +87,7 @@
 				D007CE221C9CEC6B00029A14 /* AppDelegate.swift */,
 				D007CE241C9CEC6B00029A14 /* MPViewController.swift */,
 				D007CE341C9E3B7E00029A14 /* MPHomeScene.swift */,
+				D0ED37181CB5C66E003A3EE8 /* MPGameScene.swift */,
 				D0ED37161CB301F6003A3EE8 /* MPScoresScene.swift */,
 				D007CE261C9CEC6B00029A14 /* Main.storyboard */,
 				D007CE291C9CEC6B00029A14 /* Assets.xcassets */,
@@ -221,6 +224,7 @@
 				D007CE251C9CEC6B00029A14 /* MPViewController.swift in Sources */,
 				D007CE351C9E3B7E00029A14 /* MPHomeScene.swift in Sources */,
 				D007CE231C9CEC6B00029A14 /* AppDelegate.swift in Sources */,
+				D0ED37191CB5C66E003A3EE8 /* MPGameScene.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

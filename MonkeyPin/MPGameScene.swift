@@ -12,6 +12,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     var contentCreated:Bool = false
     var lastTouch: CGPoint? = nil
     var heldButton:SKSpriteNode? = nil
+    var uniqueBallID:Int = 0
     
     // Constants
     var playerSpeed:CGFloat = 75.0
@@ -28,6 +29,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     var moneyBagCount:Int = 0
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
+    var isPausedState:Bool = false
+    
+    // Pause State Vars
+    var ballVelocities:[(String, CGVector?)] = []
     
     // static functions
     static func skRand(low:CGFloat, high:CGFloat)->CGFloat{
@@ -246,9 +251,113 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     
 /*---------------------------------------END HUD----------------------------------*/
     
+    func newPauseOverlay()->MPPauseOverlay{
+        let overlay = MPPauseOverlay()
+        overlay.name = "pauseOverlay"
+        overlay.color = UIColor(colorLiteralRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.75)
+        
+        // add button holder
+        let holder = SKSpriteNode(imageNamed: "pause_btn_holder")
+        holder.name = "buttonHolder"
+        overlay.addChild(holder)
+        
+        // add paused label
+        let pausedLabel = SKSpriteNode(imageNamed:"paused_label")
+        pausedLabel.name = "pausedLabel"
+        holder.addChild(pausedLabel)
+        
+        // add resume button
+        let resumeBtn = SKSpriteNode(imageNamed: "resume_btn")
+        resumeBtn.name = "resumeButton"
+        holder.addChild(resumeBtn)
+        
+        // add quit button
+        let quitBtn = SKSpriteNode(imageNamed: "quit_btn")
+        quitBtn.name = "quitButton"
+        holder.addChild(quitBtn)
+        
+        return overlay
+    }
+    
+    func updatePauseOverlay(){
+        let holderMargin:CGFloat = 16.0
+        let spacing:CGFloat = 8.0
+        let holderWidth:CGFloat = 300.0
+        let buttonSize:CGSize = CGSizeMake(holderWidth - holderMargin*2,(holderWidth - holderMargin*2) * (200.0/614.0))
+        
+        if let overlay = self.childNodeWithName("pauseOverlay") as? MPPauseOverlay{
+            overlay.size = CGSizeMake(self.frame.width, self.frame.height)
+            overlay.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
+            
+            if let holder = overlay.childNodeWithName("buttonHolder") as? SKSpriteNode{
+                holder.position = CGPointMake(0.0, 0.0)
+                holder.size = CGSizeMake(holderWidth, holderWidth * (654.0/689.0))
+                
+                if let pausedLabel = holder.childNodeWithName("pausedLabel") as? SKSpriteNode{
+                    pausedLabel.size = CGSizeMake(holderWidth/2.0, (holderWidth/2.0) * (92.0/366.0))
+                    pausedLabel.position = CGPointMake(0.0, holder.size.height/2.0 - pausedLabel.size.height/2.0 - holderMargin)
+                }
+                
+                if let resumeButton = holder.childNodeWithName("resumeButton") as? SKSpriteNode{
+                    resumeButton.size = buttonSize
+                    resumeButton.position = CGPointMake(0.0, buttonSize.height/2.0 + holderMargin - holder.size.height/2.0)
+                    
+                    if let quitButton = holder.childNodeWithName("quitButton") as? SKSpriteNode{
+                        quitButton.size = buttonSize
+                        quitButton.position = CGPointMake(0.0, resumeButton.position.y + buttonSize.height + spacing)
+                    }
+                }
+            }
+        }
+    }
+    
     override func didChangeSize(oldSize: CGSize) {
         // support for rotation
         updateHUDLayout()
+        updatePauseOverlay()
+    }
+    
+    func pause(){
+        // stop ball generation
+        self.isPausedState = true
+        
+        // stop ball movement
+        self.enumerateChildNodesWithName("ball[0-99]") { (ball, ptr) in
+            self.ballVelocities.append((ball.name!, ball.physicsBody?.velocity))
+            ball.paused = true
+            ball.physicsBody?.resting = true
+        }
+        
+        // stop player movement
+        if let player = self.childNodeWithName("player") as? SKSpriteNode{
+            lastTouch = CGPointMake(player.position.x, player.position.y)
+            self.updatePlayer()
+        }
+    }
+    
+    // called after resume button is pressed on the pause overlay
+    func unpause(){
+        self.isPausedState = false
+        
+        // restart ball movement
+        self.enumerateChildNodesWithName("ball[0-99]") { (ball, ptr) in
+            ball.paused = false
+            for entry in self.ballVelocities{
+                if (entry.0 == ball.name){
+                    if let velocity = entry.1{
+                        ball.physicsBody?.velocity = velocity
+                    }
+                }
+            }
+            
+        }
+    }
+    
+    // called after quit button is pressed on pause overlay
+    func quit(){
+        let trans = SKTransition.crossFadeWithDuration(1.0)
+        let homeScene = MPHomeScene(size:self.size)
+        self.view?.presentScene(homeScene, transition:trans)
     }
     
     func incrementScore(amount:Int){
@@ -272,14 +381,15 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func addBowlBall(){
-        guard (self.bowlBallCount < MAX_NUM_BOWL_BALLS) else{
-            // we're at our maximum bowl_ball count already
+        guard ((self.bowlBallCount < MAX_NUM_BOWL_BALLS) && (self.isPausedState == false)) else{
+            // we're at our maximum bowl_ball count already or game is paused . . .
             return
         }
         
         // create the ball
         let ball = SKSpriteNode(texture:SKTexture(imageNamed: "bowl_ball"), size:CGSizeMake(20.0,20.0))
-        ball.name = "ball"
+        ball.name = "ball\(uniqueBallID)"
+        uniqueBallID = (uniqueBallID + 1) % 100
         
         // randomize initial position along screen edge
         let choice:UInt32 = arc4random_uniform(4)
@@ -382,10 +492,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
                 // Check if the (child) node is a button and respond if necessary
                 if (releasedNode.name == "pauseButton"){
                     releasedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn")))
-                    let trans = SKTransition.crossFadeWithDuration(1.0)
-                    let homeScene = MPHomeScene(size:self.size)
-                    self.view?.presentScene(homeScene, transition:trans)
-                    print("pause pressed!")
+                    
+                    self.pause()
+                    let overlay = self.newPauseOverlay()
+                    overlay.userInteractionEnabled = true
+                    self.addChild(overlay)
+                    self.updatePauseOverlay()
+                    overlay.runAction(SKAction.fadeInWithDuration(1.0))
+                    return
                 }
             }
         }
@@ -403,7 +517,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     // MARK - Updates
     override func didSimulatePhysics() {
         // clean up off-screen nodes . . .
-        self.enumerateChildNodesWithName("ball") { (node, stop) -> Void in
+        self.enumerateChildNodesWithName("ball[0-99]") { (node, stop) -> Void in
             if (node.position.y < 0 || node.position.y > self.frame.height ||
                 node.position.x < 0 || node.position.x > self.frame.width){
                 node.removeFromParent()

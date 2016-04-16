@@ -12,15 +12,22 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     var contentCreated:Bool = false
     var lastTouch: CGPoint? = nil
     var heldButton:SKSpriteNode? = nil
-    var moneyBagCount:Int = 0
-    var currentScore:Int = 0
-    var playerSpeed:CGFloat = 50.0
-    var ballSpeed:CGFloat = 50.0
-    let HUDHeight:CGFloat = 52.0
     
+    // Constants
+    var playerSpeed:CGFloat = 75.0
+    var ballSpeed:CGFloat = 70.0
+    let HUDHeight:CGFloat = 52.0
+    let MAX_NUM_BOWL_BALLS = 5
+    
+    // Collision Categories
     let monkeyCategory: UInt32 = 0x1 << 0
     let moneyCategory: UInt32 = 0x1 << 1
     let ballCategory: UInt32 = 0x1 << 2
+    
+    // Game State
+    var moneyBagCount:Int = 0
+    var bowlBallCount:Int = 0
+    var currentScore:Int = 0
     
     // static functions
     static func skRand(low:CGFloat, high:CGFloat)->CGFloat{
@@ -40,16 +47,25 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func createSceneContents(){
+        // background texture
+        let background = SKSpriteNode(imageNamed: "grass_texture")
+        background.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
+        self.addChild(background)
+        
+        // HUD
         let HUD = newHUD()
         self.addChild(HUD)
         updateHUDLayout()
         
+        // Player Monkey
         let monkey = newMonkeyPlayer()
         self.addChild(monkey)
         
+        // test money bag
         let moneyBag = newMoneyBag()
         self.addChild(moneyBag)
         
+        // initiate bowl ball sequence
         let makeBalls = SKAction.sequence([SKAction.performSelector("addBowlBall", onTarget: self),SKAction.waitForDuration(5.0, withRange: 2.0)])
         self.runAction(SKAction.repeatActionForever(makeBalls))
     }
@@ -71,7 +87,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     
     func newMoneyBag()->SKSpriteNode{
         let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30,30))
-        moneyBag.name = "moneybag_\(self.moneyBagCount)"
         
         moneyBag.position = CGPointMake(CGRectGetMidX(self.frame), 100.0)
         let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30,30))
@@ -86,6 +101,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         return moneyBag
     }
     
+/*-----------------------------Heads Up Display (HUD)----------------------------*/
+    
     func newHUD()->SKSpriteNode{
         let HUD = SKSpriteNode(color: UIColor.clearColor(), size: CGSizeMake(self.frame.size.width, HUDHeight))
         HUD.name = "HUD"
@@ -93,22 +110,61 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         // note: anchorPoint coordinates are percentages, not literal values
         HUD.anchorPoint = CGPointMake(0.0,1.0)
         
-        for i in 0...2{
-            HUD.addChild(newMonkeyLifeNodeAtIndex(i))
-        }
-        
+        //for i in 0...2{
+            //HUD.addChild(newMonkeyLifeNodeAtIndex(i))
+        //}
+        HUD.addChild(newMonkeyLifeIcon())
+        HUD.addChild(newLifeLabel(3))
+        HUD.addChild(newMoneyBagIcon())
+        HUD.addChild(newMoneyLabel(0))
+        // HUD.addChild(newRoundLabel(1))
+        HUD.addChild(newScoreLabel(0))
         HUD.addChild(newPauseButton())
-        HUD.addChild(newScoreLabel(0));
         
         return HUD
     }
     
-    func newMonkeyLifeNodeAtIndex(index_in: Int)->SKSpriteNode{
-        let monkeyLife = SKSpriteNode(texture:SKTexture(imageNamed: "player_monkey"))
-        monkeyLife.name = "life\(index_in)"
+    func newMonkeyLifeIcon()->SKSpriteNode{
+        let monkeyLife = SKSpriteNode(texture:SKTexture(imageNamed: "life_icon"))
+        monkeyLife.name = "playerLifeIcon"
         // note: anchorPoint coordinates are percentages, not literal values
         monkeyLife.anchorPoint = CGPointMake(0.0,1.0)
         return monkeyLife
+    }
+    
+    func newLifeLabel(lives: Int)->SKLabelNode{
+        let lifeLabel = newHUDLabel("x\(lives)")
+        lifeLabel.name = "playerLives"
+        return lifeLabel
+    }
+    
+    func newMoneyBagIcon()->SKSpriteNode{
+        let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag_icon"))
+        moneyBag.name = "playerMoneyIcon"
+        // note: anchorPoint coordinates are percentages, not literal values
+        moneyBag.anchorPoint = CGPointMake(0.0,1.0)
+        return moneyBag
+    }
+    
+    func newMoneyLabel(money: Int)->SKLabelNode{
+        let moneyLabel = newHUDLabel("x\(money)")
+        moneyLabel.name = "playerMoney"
+        return moneyLabel
+    }
+    
+    func newRoundLabel(round: Int)->SKLabelNode{
+        let roundLabel = newHUDLabel("Round \(round)")
+        roundLabel.name = "gameRound"
+        roundLabel.fontColor = UIColor.blackColor()
+        return roundLabel
+    }
+    
+    func newScoreLabel(score: Int)->SKLabelNode{
+        let scoreLabel = newHUDLabel("\(score)")
+        scoreLabel.name = "playerScore"
+        scoreLabel.fontColor = UIColor.init(colorLiteralRed: 1.0, green: 215.0/255.0, blue: 0/0, alpha: 1.0)
+        scoreLabel.fontSize = 20.0
+        return scoreLabel
     }
     
     func newPauseButton()->SKSpriteNode{
@@ -119,20 +175,21 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         return pauseButton
     }
     
-    func newScoreLabel(score: Int)->SKLabelNode{
-        let scoreLabel = SKLabelNode(fontNamed: "Chalkduster")
-        scoreLabel.fontSize = 28.0
-        scoreLabel.name = "playerScore"
-        scoreLabel.fontColor = UIColor.whiteColor()
-        scoreLabel.text = String(score)
-        return scoreLabel
+    // helper function
+    func newHUDLabel(text: String)->SKLabelNode{
+        let hudLabel = SKLabelNode(fontNamed:"Chalkduster")
+        hudLabel.fontSize = 16.0
+        hudLabel.fontColor = UIColor.whiteColor()
+        hudLabel.text = text;
+        return hudLabel
     }
     
     func updateHUDLayout(){
-        let margin:CGFloat = 22.0
-        let tokenDim:CGFloat = 30.0
-        let spacing:CGFloat = 8.0
-        
+        let margin:CGFloat = 16.0
+        let tokenDim:CGFloat = 25.0
+        let spacing:CGFloat = 4.0
+        let labelYPos:CGFloat = -margin - tokenDim
+        var horizontalOffset:CGFloat = 0.0
         // verify there exists a HUD
         guard let HUD = self.childNodeWithName("HUD") as? SKSpriteNode else{
             return
@@ -141,28 +198,53 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         HUD.position = CGPointMake(0.0, self.frame.height)
         HUD.size = CGSizeMake(self.frame.size.width, HUDHeight)
         
-        // update the position of the score label
-        if let scoreLabel = HUD.childNodeWithName("playerScore"){
-            // it seems that the anchor point of an SKLabelNode is (0.0,0.0), meaning it's position
-            // is defined by its lower left corner
-            scoreLabel.position = CGPointMake(self.frame.width - (scoreLabel.frame.width/2.0) - margin - tokenDim - spacing, -HUDHeight)
+        // update the position of the monkey life icon
+        if let monkeyLife = HUD.childNodeWithName("playerLifeIcon") as? SKSpriteNode{
+            monkeyLife.size = CGSizeMake(tokenDim, tokenDim)
+            monkeyLife.position = CGPointMake(margin,-margin)
+            horizontalOffset += (margin + tokenDim + spacing)
+        }
+        
+        // update the position of the monkey life label
+        if let monkeyLives = HUD.childNodeWithName("playerLives"){
+            monkeyLives.position = CGPointMake(horizontalOffset + monkeyLives.frame.width/2.0, labelYPos)
+            horizontalOffset += (monkeyLives.frame.width + spacing)
+        }
+        
+        // update the position of the money bag icon
+        if let moneyBagIcon = HUD.childNodeWithName("playerMoneyIcon") as? SKSpriteNode{
+            // make height proportional
+            moneyBagIcon.size = CGSizeMake(tokenDim * (293.0/392.0), tokenDim)
+            moneyBagIcon.position = CGPointMake(horizontalOffset, -margin)
+            horizontalOffset += (moneyBagIcon.size.width + spacing)
+        }
+        
+        // update the position of the money label
+        if let moneyLabel = HUD.childNodeWithName("playerMoney"){
+            moneyLabel.position = CGPointMake(horizontalOffset + moneyLabel.frame.width/2.0, labelYPos)
+            horizontalOffset += (moneyLabel.frame.width + spacing)
+        }
+        
+        // update the position of the round label
+        if let roundLabel = HUD.childNodeWithName("gameRound"){
+            roundLabel.position = CGPointMake(horizontalOffset + roundLabel.frame.width/2.0, labelYPos)
+            horizontalOffset += (roundLabel.frame.width + spacing)
         }
         
         // update the position of the pause button
         if let pauseBtn = HUD.childNodeWithName("pauseButton") as? SKSpriteNode{
             pauseBtn.size = CGSizeMake(tokenDim, tokenDim)
-            pauseBtn.position = CGPointMake(self.frame.width - tokenDim - margin, -margin)
+            // pin to bottom left corner
+            pauseBtn.position = CGPointMake(margin, -self.frame.height + margin + tokenDim)
         }
         
-        // update the position of the monkey lives
-        for i in 0...2{
-            let index = CGFloat(i)
-            if let monkeyLife = HUD.childNodeWithName("life\(i)") as? SKSpriteNode{
-                monkeyLife.size = CGSizeMake(tokenDim, tokenDim)
-                monkeyLife.position = CGPointMake(margin + (index * spacing) + (tokenDim * index), -margin)
-            }
+        // update the position of the score label
+        if let scoreLabel = HUD.childNodeWithName("playerScore"){
+            scoreLabel.position = CGPointMake(self.frame.width - scoreLabel.frame.width/2.0 - margin, labelYPos)
         }
     }
+    
+/*---------------------------------------END HUD----------------------------------*/
     
     override func didChangeSize(oldSize: CGSize) {
         // support for rotation
@@ -179,7 +261,22 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    func incrementMoney(amount:Int){
+        self.moneyBagCount += amount
+        
+        if let HUD = self.childNodeWithName("HUD"){
+            if let moneyLabel = HUD.childNodeWithName("playerMoney") as? SKLabelNode{
+                moneyLabel.text = "x\(self.moneyBagCount)"
+            }
+        }
+    }
+    
     func addBowlBall(){
+        guard (self.bowlBallCount < MAX_NUM_BOWL_BALLS) else{
+            // we're at our maximum bowl_ball count already
+            return
+        }
+        
         // create the ball
         let ball = SKSpriteNode(texture:SKTexture(imageNamed: "bowl_ball"), size:CGSizeMake(20.0,20.0))
         ball.name = "ball"
@@ -189,7 +286,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         switch choice {
         case 0:
             // along top edge
-            ball.position = CGPointMake(MPGameScene.skRand(0.0, high: self.size.width), self.size.height-HUDHeight)
+            ball.position = CGPointMake(MPGameScene.skRand(0.0, high: self.size.width), self.size.height)
         case 1:
             // along right edge
             ball.position = CGPointMake(self.size.width, MPGameScene.skRand(0.0, high: self.size.height))
@@ -212,6 +309,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         physicsBody.contactTestBitMask = monkeyCategory
         physicsBody.collisionBitMask = ballCategory
         physicsBody.usesPreciseCollisionDetection = true
+        physicsBody.restitution = 1.0   // balls don't lose energy when they bounce off objects
+        physicsBody.linearDamping = 0.0 // balls don't lose energy from air resistance
         ball.physicsBody = physicsBody
         
         // set initial velocity
@@ -226,6 +325,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         
         // add ball to scene
         self.addChild(ball)
+        self.bowlBallCount += 1
     }
     
     
@@ -307,6 +407,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
             if (node.position.y < 0 || node.position.y > self.frame.height ||
                 node.position.x < 0 || node.position.x > self.frame.width){
                 node.removeFromParent()
+                self.bowlBallCount -= 1
             }
         }
         if let _ = self.childNodeWithName("player") as? SKSpriteNode {
@@ -316,7 +417,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     
     // Determines if the player's position should be updated
     private func shouldMove(currentPosition currentPosition: CGPoint, touchPosition: CGPoint) -> Bool {
-        
         guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
             return false
         }
@@ -328,7 +428,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     
     // Updates the player's position by moving towards the last touch made
     func updatePlayer() {
-        
         guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
             return
         }
@@ -370,7 +469,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         
         if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 2)){
             if let moneyNode = secondBody.node{
-                self.incrementScore(1)
+                self.incrementMoney(1)
                 moneyNode.removeFromParent()
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 4)){

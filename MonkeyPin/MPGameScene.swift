@@ -24,12 +24,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     let monkeyCategory: UInt32 = 0x1 << 0
     let moneyCategory: UInt32 = 0x1 << 1
     let ballCategory: UInt32 = 0x1 << 2
+    let pinCategory: UInt32 = 0x1 << 3
     
     // Game State
     var moneyBagCount:Int = 0
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
     var isPausedState:Bool = false
+    var isTankMode:Bool = false
     
     // Pause State Vars
     var ballVelocities:[(String, CGVector?)] = []
@@ -66,6 +68,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         let monkey = newMonkeyPlayer()
         self.addChild(monkey)
         
+        // Bowling Pin
+        let bowlingPin = newBowlingPin()
+        self.addChild(bowlingPin)
+        
         // test money bag
         let moneyBag = newMoneyBag()
         self.addChild(moneyBag)
@@ -76,14 +82,15 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func newMonkeyPlayer()->SKSpriteNode{
-        let playerMonkey = SKSpriteNode(texture: SKTexture(imageNamed: "player_monkey"), size:CGSizeMake(50, 50))
+        let playerSize:CGSize = CGSizeMake(40.0,40.0)
+        let playerMonkey = SKSpriteNode(texture: SKTexture(imageNamed: "player_monkey"), size:playerSize)
         playerMonkey.name = "player"
         playerMonkey.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
-        let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed: "player_monkey"), size: CGSizeMake(50,50))
+        let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed: "player_monkey"), size: playerSize)
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = monkeyCategory
-        physicsBody.contactTestBitMask = moneyCategory | ballCategory
+        physicsBody.contactTestBitMask = moneyCategory | ballCategory | pinCategory
         physicsBody.collisionBitMask = monkeyCategory
         physicsBody.usesPreciseCollisionDetection = true
         playerMonkey.physicsBody = physicsBody
@@ -91,7 +98,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     }
     
     func newMoneyBag()->SKSpriteNode{
-        let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30,30))
+        let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30.0,30.0))
         
         moneyBag.position = CGPointMake(CGRectGetMidX(self.frame), 100.0)
         let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30,30))
@@ -104,6 +111,26 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         moneyBag.physicsBody = physicsBody
         
         return moneyBag
+    }
+    
+    func newBowlingPin()->SKSpriteNode{
+        let pinSize:CGSize = CGSizeMake(20.0, 20.0 * (256.0/88.0))
+        
+        let bowlingPin = SKSpriteNode(texture:SKTexture(imageNamed: "bowling_pin"), size:pinSize)
+        bowlingPin.name = "bowlingPin"
+        bowlingPin.position = CGPointMake(CGRectGetMidX(self.frame), 380.0)
+        bowlingPin.anchorPoint = CGPointMake(0.5, 1.0)
+        
+        let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed:"bowling_pin"), size: pinSize)
+        physicsBody.affectedByGravity = false
+        physicsBody.allowsRotation = false
+        physicsBody.categoryBitMask = pinCategory
+        physicsBody.contactTestBitMask = monkeyCategory | ballCategory
+        physicsBody.collisionBitMask = pinCategory | ballCategory
+        physicsBody.usesPreciseCollisionDetection = true
+        bowlingPin.physicsBody = physicsBody
+        
+        return bowlingPin
     }
     
 /*-----------------------------Heads Up Display (HUD)----------------------------*/
@@ -322,11 +349,13 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         self.isPausedState = true
         
         // stop ball movement
-        self.enumerateChildNodesWithName("ball[0-99]") { (ball, ptr) in
+        self.enumerateChildNodesWithName("ball[0-9]") { (ball, ptr) in
             self.ballVelocities.append((ball.name!, ball.physicsBody?.velocity))
             ball.paused = true
             ball.physicsBody?.resting = true
+            print(ball.name)
         }
+        
         
         // stop player movement
         if let player = self.childNodeWithName("player") as? SKSpriteNode{
@@ -380,6 +409,51 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
+    func enterTankMode(){
+        guard let pin = self.childNodeWithName("bowlingPin") as? SKSpriteNode else{
+            return
+        }
+        
+        guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
+            return
+        }
+        
+        // Remove Pin
+        pin.removeFromParent()
+        
+        // Enter Tank Mode
+        let tankSize = CGSizeMake(40.0 * (142.0/203.0),40.0)
+        player.size = tankSize
+        player.runAction(SKAction.sequence([SKAction.rotateToAngle(CGFloat(M_PI), duration: 0.0), SKAction.setTexture(SKTexture(imageNamed: "tank_mode"))]))
+        player.physicsBody = nil
+        
+        let pinBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(0.5*tankSize.width, 0.5*tankSize.height), center: CGPointMake(0.0,-0.25*tankSize.height))
+        pinBody.affectedByGravity = false
+        pinBody.allowsRotation = false
+        pinBody.categoryBitMask = pinCategory
+        pinBody.contactTestBitMask = ballCategory | moneyCategory
+        pinBody.collisionBitMask = pinCategory | ballCategory
+        pinBody.usesPreciseCollisionDetection = true
+        player.physicsBody = pinBody
+        
+        let emptyNode = SKSpriteNode(color: UIColor.clearColor(), size: tankSize)
+        emptyNode.name = "emptyNode"
+        emptyNode.position = player.position
+        let monkeyBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(tankSize.width, tankSize.height/2.0), center: CGPointMake(0.0, 0.25*tankSize.height))
+        monkeyBody.affectedByGravity = false
+        monkeyBody.allowsRotation = false
+        monkeyBody.categoryBitMask = monkeyCategory
+        monkeyBody.contactTestBitMask = moneyCategory | ballCategory
+        monkeyBody.collisionBitMask = monkeyCategory
+        monkeyBody.usesPreciseCollisionDetection = true
+        emptyNode.physicsBody = monkeyBody
+        
+        self.addChild(emptyNode)
+        
+        // player.physicsBody = SKPhysicsBody(bodies: [pinBody, monkeyBody])
+        // player.physicsBody = monkeyBody
+    }
+    
     func addBowlBall(){
         guard ((self.bowlBallCount < MAX_NUM_BOWL_BALLS) && (self.isPausedState == false)) else{
             // we're at our maximum bowl_ball count already or game is paused . . .
@@ -389,7 +463,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         // create the ball
         let ball = SKSpriteNode(texture:SKTexture(imageNamed: "bowl_ball"), size:CGSizeMake(20.0,20.0))
         ball.name = "ball\(uniqueBallID)"
-        uniqueBallID = (uniqueBallID + 1) % 100
+        uniqueBallID = (uniqueBallID + 1) % 10
         
         // randomize initial position along screen edge
         let choice:UInt32 = arc4random_uniform(4)
@@ -416,8 +490,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = ballCategory
-        physicsBody.contactTestBitMask = monkeyCategory
-        physicsBody.collisionBitMask = ballCategory
+        physicsBody.contactTestBitMask = monkeyCategory | pinCategory
+        physicsBody.collisionBitMask = ballCategory | pinCategory
         physicsBody.usesPreciseCollisionDetection = true
         physicsBody.restitution = 1.0   // balls don't lose energy when they bounce off objects
         physicsBody.linearDamping = 0.0 // balls don't lose energy from air resistance
@@ -559,9 +633,18 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
                 let velocityY = playerSpeed * sin(angle)
                 
                 let newVelocity = CGVector(dx: velocotyX, dy: velocityY)
-                player.physicsBody!.velocity = newVelocity;
+                player.physicsBody!.velocity = newVelocity
+                
+                if let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode{
+                    emptyNode.runAction(rotateAction)
+                    emptyNode.physicsBody!.velocity = newVelocity
+                }
+                
             } else {
                 player.physicsBody!.resting = true
+                if let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode{
+                    emptyNode.physicsBody!.resting = true
+                }
             }
         }
     }
@@ -588,8 +671,15 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 4)){
             print("GAME OVER")
+        }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 8)){
+            print("Monkey Hit Pin")
+            enterTankMode()
+        }else if ((firstBody.categoryBitMask == 4) && (secondBody.categoryBitMask == 8)){
+            print("Pin and Ball")
+        }else if ((firstBody.categoryBitMask == 2) && (secondBody.categoryBitMask == 8)){
+            print("Pin and Money")
         }else{
-            print("another collision")
+            print("another collision: \(firstBody.categoryBitMask)w/\(secondBody.categoryBitMask)")
         }
     }
 }

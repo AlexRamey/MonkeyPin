@@ -13,12 +13,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     var lastTouch: CGPoint? = nil
     var heldButton:SKSpriteNode? = nil
     var uniqueBallID:Int = 0
+    var uniqueMoneyID:Int = 0
     
     // Constants
     var playerSpeed:CGFloat = 75.0
     var ballSpeed:CGFloat = 70.0
     let HUDHeight:CGFloat = 52.0
     let MAX_NUM_BOWL_BALLS = 5
+    let MAX_NUM_MONEY_BAGS = 3
     
     // Collision Categories
     let monkeyCategory: UInt32 = 0x1 << 0
@@ -28,6 +30,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     
     // Game State
     var moneyBagCount:Int = 0
+    var moneyBagScore:Int = 0
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
     var isPausedState:Bool = false
@@ -73,12 +76,16 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         self.addChild(bowlingPin)
         
         // test money bag
-        let moneyBag = newMoneyBag()
-        self.addChild(moneyBag)
+        // let moneyBag = newMoneyBag()
+        // self.addChild(moneyBag)
         
         // initiate bowl ball sequence
-        let makeBalls = SKAction.sequence([SKAction.performSelector("addBowlBall", onTarget: self),SKAction.waitForDuration(5.0, withRange: 2.0)])
+        let makeBalls = SKAction.sequence([SKAction.performSelector(#selector(addBowlBall), onTarget: self),SKAction.waitForDuration(5.0, withRange: 2.0)])
         self.runAction(SKAction.repeatActionForever(makeBalls))
+        
+        // initiate money bag drops
+        let makeItRain = SKAction.sequence([SKAction.performSelector(#selector(addMoneyBag), onTarget: self),SKAction.waitForDuration(20.0, withRange: 5.0)])
+        self.runAction(SKAction.repeatActionForever(makeItRain))
     }
     
     func newMonkeyPlayer()->SKSpriteNode{
@@ -100,13 +107,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
     func newMoneyBag()->SKSpriteNode{
         let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30.0,30.0))
         
-        moneyBag.position = CGPointMake(CGRectGetMidX(self.frame), 100.0)
         let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30,30))
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = moneyCategory
-        physicsBody.contactTestBitMask = monkeyCategory
-        physicsBody.collisionBitMask = moneyCategory
+        physicsBody.contactTestBitMask = monkeyCategory | pinCategory
+        physicsBody.collisionBitMask = 0x0
         physicsBody.usesPreciseCollisionDetection = true
         moneyBag.physicsBody = physicsBody
         
@@ -119,7 +125,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         let bowlingPin = SKSpriteNode(texture:SKTexture(imageNamed: "bowling_pin"), size:pinSize)
         bowlingPin.name = "bowlingPin"
         bowlingPin.position = CGPointMake(CGRectGetMidX(self.frame), 380.0)
-        bowlingPin.anchorPoint = CGPointMake(0.5, 1.0)
         
         let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed:"bowling_pin"), size: pinSize)
         physicsBody.affectedByGravity = false
@@ -131,6 +136,100 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         bowlingPin.physicsBody = physicsBody
         
         return bowlingPin
+    }
+    
+    func enterTankMode(){
+        if (self.isTankMode == true){
+            // already in tank mode
+            return
+        }
+        
+        guard let pin = self.childNodeWithName("bowlingPin") as? SKSpriteNode else{
+            return
+        }
+        
+        guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
+            return
+        }
+        
+        // Remove Pin
+        pin.removeFromParent()
+        
+        // Enter Tank Mode
+        let tankSize = CGSizeMake(40.0 * (142.0/203.0),40.0)
+        player.size = tankSize
+        player.runAction(SKAction.sequence([SKAction.rotateToAngle(CGFloat(M_PI), duration: 0.0), SKAction.setTexture(SKTexture(imageNamed: "tank_mode"))]))
+        player.physicsBody = nil
+        
+        let pinBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(0.5*tankSize.width, 0.5*tankSize.height), center: CGPointMake(0.0,-0.25*tankSize.height))
+        pinBody.affectedByGravity = false
+        pinBody.allowsRotation = false
+        pinBody.categoryBitMask = pinCategory
+        pinBody.contactTestBitMask = ballCategory | moneyCategory
+        pinBody.collisionBitMask = pinCategory | ballCategory
+        pinBody.usesPreciseCollisionDetection = true
+        pinBody.restitution = 1.0   // pin body doesn't lose energy when it bounces off objects
+        pinBody.linearDamping = 0.0 // pin body doesn't lose energy from air resistance
+        player.physicsBody = pinBody
+        
+        let emptyNode = SKSpriteNode(color: UIColor.clearColor(), size: tankSize)
+        emptyNode.name = "emptyNode"
+        emptyNode.position = player.position
+        let monkeyBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(tankSize.width, (tankSize.height/2.0) - 8.0), center: CGPointMake(0.0, 0.25*tankSize.height))
+        monkeyBody.affectedByGravity = false
+        monkeyBody.allowsRotation = false
+        monkeyBody.categoryBitMask = monkeyCategory
+        monkeyBody.contactTestBitMask = moneyCategory | ballCategory
+        monkeyBody.collisionBitMask = monkeyCategory
+        monkeyBody.usesPreciseCollisionDetection = true
+        monkeyBody.restitution = 1.0    // monkey body doesn't lose energy when it bounces off objects
+        monkeyBody.linearDamping = 0.0  // monkey body doesn't lose energy from air resistance
+        emptyNode.physicsBody = monkeyBody
+        
+        self.addChild(emptyNode)
+        
+        // tanks are slow but powerful!
+        self.playerSpeed = 25.0
+        self.isTankMode = true
+    }
+    
+    func exitTankMode(){
+        if (self.isTankMode == false){
+            // already not in tank mode
+            return
+        }
+        
+        guard let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode else{
+            return
+        }
+        
+        guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
+            return
+        }
+        
+        // remove empty node
+        emptyNode.removeFromParent()
+        
+        // create fresh new monkey player at same position as current player
+        // remove old player
+        let monkeyPlayer = newMonkeyPlayer()
+        monkeyPlayer.position = player.position
+        monkeyPlayer.zRotation = player.zRotation
+        player.removeFromParent()
+        
+        self.addChild(monkeyPlayer)
+        lastTouch = nil
+        
+        let bowlingPin = newBowlingPin()
+        
+        let distance = (monkeyPlayer.size.width/2.0) + (bowlingPin.size.height/2.0)
+        
+        bowlingPin.position = CGPointMake(monkeyPlayer.position.x + (distance * cos(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)),monkeyPlayer.position.y + (distance * sin(player.zRotation - CGFloat(M_PI)/2.0)))
+        
+        self.addChild(bowlingPin)
+        
+        self.playerSpeed = 75.0
+        self.isTankMode = false
     }
     
 /*-----------------------------Heads Up Display (HUD)----------------------------*/
@@ -399,59 +498,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         }
     }
     
-    func incrementMoney(amount:Int){
-        self.moneyBagCount += amount
-        
+    func incrementMoneyScore(amount:Int){
+        self.moneyBagScore += amount
+        print("increment")
         if let HUD = self.childNodeWithName("HUD"){
             if let moneyLabel = HUD.childNodeWithName("playerMoney") as? SKLabelNode{
-                moneyLabel.text = "x\(self.moneyBagCount)"
+                moneyLabel.text = "x\(self.moneyBagScore)"
             }
         }
-    }
-    
-    func enterTankMode(){
-        guard let pin = self.childNodeWithName("bowlingPin") as? SKSpriteNode else{
-            return
-        }
-        
-        guard let player = self.childNodeWithName("player") as? SKSpriteNode else{
-            return
-        }
-        
-        // Remove Pin
-        pin.removeFromParent()
-        
-        // Enter Tank Mode
-        let tankSize = CGSizeMake(40.0 * (142.0/203.0),40.0)
-        player.size = tankSize
-        player.runAction(SKAction.sequence([SKAction.rotateToAngle(CGFloat(M_PI), duration: 0.0), SKAction.setTexture(SKTexture(imageNamed: "tank_mode"))]))
-        player.physicsBody = nil
-        
-        let pinBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(0.5*tankSize.width, 0.5*tankSize.height), center: CGPointMake(0.0,-0.25*tankSize.height))
-        pinBody.affectedByGravity = false
-        pinBody.allowsRotation = false
-        pinBody.categoryBitMask = pinCategory
-        pinBody.contactTestBitMask = ballCategory | moneyCategory
-        pinBody.collisionBitMask = pinCategory | ballCategory
-        pinBody.usesPreciseCollisionDetection = true
-        player.physicsBody = pinBody
-        
-        let emptyNode = SKSpriteNode(color: UIColor.clearColor(), size: tankSize)
-        emptyNode.name = "emptyNode"
-        emptyNode.position = player.position
-        let monkeyBody = SKPhysicsBody(rectangleOfSize: CGSizeMake(tankSize.width, tankSize.height/2.0), center: CGPointMake(0.0, 0.25*tankSize.height))
-        monkeyBody.affectedByGravity = false
-        monkeyBody.allowsRotation = false
-        monkeyBody.categoryBitMask = monkeyCategory
-        monkeyBody.contactTestBitMask = moneyCategory | ballCategory
-        monkeyBody.collisionBitMask = monkeyCategory
-        monkeyBody.usesPreciseCollisionDetection = true
-        emptyNode.physicsBody = monkeyBody
-        
-        self.addChild(emptyNode)
-        
-        // player.physicsBody = SKPhysicsBody(bodies: [pinBody, monkeyBody])
-        // player.physicsBody = monkeyBody
     }
     
     func addBowlBall(){
@@ -512,7 +566,52 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         self.bowlBallCount += 1
     }
     
+    func addMoneyBag(){
+        guard ((self.moneyBagCount < MAX_NUM_MONEY_BAGS) && (self.isPausedState == false)) else{
+            // we're at our maximum money_bag count already or game is paused . . .
+            return
+        }
+        
+        let moneyBag = newMoneyBag()
+        moneyBag.name = "money\(uniqueMoneyID)"
+        // print("new money: \(uniqueMoneyID)")
+        uniqueMoneyID = (uniqueMoneyID + 1) % 10
+        
+        // randomize initial position
+        while (true){
+            moneyBag.position = CGPointMake(MPGameScene.skRand(moneyBag.size.width, high: self.size.width-moneyBag.size.width), MPGameScene.skRand(moneyBag.size.height, high: self.size.height-moneyBag.size.height))
+            
+            if let player = self.childNodeWithName("player") as? SKSpriteNode{
+                let distance = hypotf(Float(moneyBag.position.x - player.position.x), Float(moneyBag.position.y - player.position.y))
+                if distance > Float(player.size.height){
+                    break
+                }
+            }
+        }
+        
+        self.addChild(moneyBag)
+        self.moneyBagCount += 1
+        
+        // print("old money: money\((uniqueMoneyID - MAX_NUM_MONEY_BAGS + 10) % 10)")
+        // start a backward search from two bag #s ago through the next bag number to be used and remove set old bags to expire
+        for i in 0...7{
+            if let oldBag = self.childNodeWithName("money\((uniqueMoneyID - MAX_NUM_MONEY_BAGS + 10 + (10-i)) % 10)") as? SKSpriteNode{
+                self.initiateMoneyExpiration(oldBag)
+            }
+        }
+    }
     
+    func initiateMoneyExpiration(node: SKSpriteNode){
+        // walking animation
+        var expirationAnimation:[SKTexture] = []
+        expirationAnimation.append(SKTexture(imageNamed: "money_bag"))
+        expirationAnimation.append(SKTexture(imageNamed: "transparent"))
+        let expiration = SKAction.repeatAction(SKAction.animateWithTextures(expirationAnimation, timePerFrame: 0.0625), count: 32)
+        node.runAction(expiration) { 
+            node.removeFromParent()
+            self.moneyBagCount -= 1
+        }
+    }
     
     // MARK: Touch Handling
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
@@ -620,6 +719,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
             return
         }
         
+        if let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode{
+            // during tank mode, keep these sprites directly on top of one another
+            emptyNode.position = player.position
+        }
+        
         if let touch = lastTouch {
             let currentPosition = player.position
             if shouldMove(currentPosition: currentPosition, touchPosition: touch) {
@@ -636,6 +740,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
                 player.physicsBody!.velocity = newVelocity
                 
                 if let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode{
+                    // during tank mode, keep these sprites directly on top of one another
                     emptyNode.runAction(rotateAction)
                     emptyNode.physicsBody!.velocity = newVelocity
                 }
@@ -643,6 +748,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
             } else {
                 player.physicsBody!.resting = true
                 if let emptyNode = self.childNodeWithName("emptyNode") as? SKSpriteNode{
+                    // during tank mode, keep these sprites directly on top of one another
                     emptyNode.physicsBody!.resting = true
                 }
             }
@@ -666,18 +772,20 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate {
         
         if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 2)){
             if let moneyNode = secondBody.node{
-                self.incrementMoney(1)
+                self.incrementMoneyScore(1)
+                moneyNode.physicsBody = nil
                 moneyNode.removeFromParent()
+                self.moneyBagCount -= 1
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 4)){
-            print("GAME OVER")
+            print("Monkey AND BALL")
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 8)){
-            print("Monkey Hit Pin")
+            print("Monkey AND PIN")
             enterTankMode()
         }else if ((firstBody.categoryBitMask == 4) && (secondBody.categoryBitMask == 8)){
-            print("Pin and Ball")
+            print("BALL AND PIN")
         }else if ((firstBody.categoryBitMask == 2) && (secondBody.categoryBitMask == 8)){
-            print("Pin and Money")
+            print("MONEY AND PIN")
         }else{
             print("another collision: \(firstBody.categoryBitMask)w/\(secondBody.categoryBitMask)")
         }

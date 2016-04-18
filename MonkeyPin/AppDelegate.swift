@@ -13,7 +13,7 @@ import Parse
 class AppDelegate: UIResponder, UIApplicationDelegate {
 
     var window: UIWindow?
-
+    var retainedGameScene:MPGameScene?
 
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
         // Override point for customization after application launch.
@@ -25,6 +25,14 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         }
         Parse.initializeWithConfiguration(configuration)
         return true
+    }
+    
+    func retainGameScene(scene: MPGameScene){
+        self.retainedGameScene = scene
+    }
+    
+    func releaseGameScene(){
+        self.retainedGamedScene = nil
     }
 
     func applicationWillResignActive(application: UIApplication) {

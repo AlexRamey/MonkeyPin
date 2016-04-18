@@ -80,6 +80,5 @@ class MPPauseOverlay: SKSpriteNode {
             }
         }
     }
-    
-    
+
 }

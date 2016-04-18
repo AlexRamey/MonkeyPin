@@ -8,7 +8,7 @@
 
 import SpriteKit
 
-class MPNewGameOverlay: SKSpriteNode {
+class MPGameOverOverlay: SKSpriteNode {
     var heldButton:SKSpriteNode? = nil
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {

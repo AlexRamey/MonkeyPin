@@ -9,12 +9,13 @@
 import SpriteKit
 import Parse
 
-class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegate {
+class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegate, MPLocationFinderDelegate {
     // Scene Fields
     var contentCreated:Bool = false
     var lastTouch: CGPoint? = nil
     var heldButton:SKSpriteNode? = nil
     var doubleTapGesture:UITapGestureRecognizer? = nil
+    var locationFinder:MPLocationFinder? = nil
     
     // Used to give bowl balls and money bags unique names
     var uniqueBallID:Int = 0
@@ -483,8 +484,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
-    func newGameOverOverlay()->MPNewGameOverlay{
-        let overlay = MPNewGameOverlay()
+    func newGameOverOverlay()->MPGameOverOverlay{
+        let overlay = MPGameOverOverlay()
         overlay.name = "newGameOverlay"
         overlay.color = UIColor(colorLiteralRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.25)
         
@@ -516,11 +517,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     
     func updateGameOverOverlay(){
         let holderMargin:CGFloat = 16.0
-        let spacing:CGFloat = 8.0
         let holderWidth:CGFloat = 300.0
         let buttonSize:CGSize = CGSizeMake(holderWidth - holderMargin*2,(holderWidth - holderMargin*2) * (200.0/614.0))
         
-        if let overlay = self.childNodeWithName("newGameOverlay") as? MPNewGameOverlay{
+        if let overlay = self.childNodeWithName("newGameOverlay") as? MPGameOverOverlay{
             overlay.size = CGSizeMake(self.frame.width, self.frame.height)
             overlay.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
             
@@ -546,15 +546,27 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     }
     
     func saveScoreAndExitGame(){
+        /*
+            TODO: a local save of the score via NSKeyedArchiving
+        */
+        
+        self.quit()
+    }
+    
+    func saveScoreToCloud(city: String){
         let userScore = PFObject(className: "GameScore")
         userScore["score"] = self.currentScore
         userScore["playerName"] = "Player1"
+        userScore["city"] = city
         userScore["cheatMode"] = false
         userScore.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
             print("Score Saved!")
         }
         
-        self.quit()
+        if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
+            print("released")
+            appDelegate.releaseGameScene()
+        }
     }
     
     override func didChangeSize(oldSize: CGSize) {
@@ -642,12 +654,25 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                     lifeIcon.texture = SKTexture(imageNamed: "dead_monkey_icon")
                 }
             }
+            
+            // pause the action
             self.pause()
+            
+            // bring in the game over overlay
             let overlay = self.newGameOverOverlay()
             overlay.userInteractionEnabled = true
             self.addChild(overlay)
             self.updateGameOverOverlay()
             overlay.runAction(SKAction.fadeInWithDuration(1.0))
+            
+            // go ahead and try to fetch user location to save along with their high score
+            // initialization kicks off find location sequence
+            self.locationFinder = MPLocationFinder(delegate: self)
+            
+            if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
+                print("retained")
+                appDelegate.retainGameScene(self)
+            }
         }
     }
     
@@ -755,7 +780,40 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     
     func addSurvivorScore(){
         // 50 pts for survivor bonus every SURVIVOR_BONUS_INTERVAL seconds
-        self.incrementGameScore(50)
+        if (!self.isPausedState){
+            self.incrementGameScore(50)
+        }
+    }
+    
+    // MARK: MPLocationFinderDelegate Methods
+    func locationFinderDidFail(locationFinder: MPLocationFinder) {
+        self.saveScoreToCloud("")
+        
+    }
+    
+    func locationFinder(locationFinder: MPLocationFinder, didFindLocation location: CLLocation) {
+        let geocoder = CLGeocoder()
+        geocoder.reverseGeocodeLocation(location) { (placemarks, error) in
+            if let _ = error{
+                print("failed to geocode")
+                self.saveScoreToCloud("")
+            }else if let results = placemarks{
+                if results.count > 0{
+                    print(results.first?.addressDictionary)
+                    if let city = results.first?.addressDictionary["city"]{
+                        self.saveScoreToCloud(city)
+                    }else{
+                        self.saveScoreToCloud("")
+                    }
+                }else{
+                    print("empty result")
+                    self.saveScoreToCloud("")
+                }
+            }else{
+                print("should never happen")
+                self.saveScoreToCloud("")
+            }
+        }
     }
     
     // MARK: Touch Handling

@@ -7,6 +7,7 @@
 //
 
 import SpriteKit
+import Parse
 
 class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegate {
     // Scene Fields
@@ -40,6 +41,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     var moneyBagScore:Int = 0
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
+    var livesLeft:Int = 3
     var isPausedState:Bool = false
     var isTankMode:Bool = false
     
@@ -121,7 +123,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = monkeyCategory
         physicsBody.contactTestBitMask = moneyCategory | ballCategory | pinCategory
-        physicsBody.collisionBitMask = monkeyCategory
+        physicsBody.collisionBitMask = 0x0
         physicsBody.usesPreciseCollisionDetection = true
         playerMonkey.physicsBody = physicsBody
         return playerMonkey
@@ -481,14 +483,89 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
+    func newGameOverOverlay()->MPNewGameOverlay{
+        let overlay = MPNewGameOverlay()
+        overlay.name = "newGameOverlay"
+        overlay.color = UIColor(colorLiteralRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.25)
+        
+        // add button holder
+        let holder = SKSpriteNode(imageNamed: "pause_btn_holder")
+        holder.name = "buttonHolder"
+        overlay.addChild(holder)
+        
+        // add game over label
+        let gameOverLabel = SKSpriteNode(imageNamed:"game_over_label")
+        gameOverLabel.name = "gameOverLabel"
+        holder.addChild(gameOverLabel)
+        
+        // add player score label
+        let finalScore = SKLabelNode(fontNamed: "Chalkduster")
+        finalScore.name = "finalScore"
+        finalScore.fontSize = 22.0
+        finalScore.fontColor = UIColor.blackColor()
+        finalScore.text = "Final Score: \(self.currentScore)"
+        holder.addChild(finalScore)
+        
+        // add home button
+        let homeBtn = SKSpriteNode(imageNamed: "game_over_home_btn")
+        homeBtn.name = "homeButton"
+        holder.addChild(homeBtn)
+        
+        return overlay
+    }
+    
+    func updateGameOverOverlay(){
+        let holderMargin:CGFloat = 16.0
+        let spacing:CGFloat = 8.0
+        let holderWidth:CGFloat = 300.0
+        let buttonSize:CGSize = CGSizeMake(holderWidth - holderMargin*2,(holderWidth - holderMargin*2) * (200.0/614.0))
+        
+        if let overlay = self.childNodeWithName("newGameOverlay") as? MPNewGameOverlay{
+            overlay.size = CGSizeMake(self.frame.width, self.frame.height)
+            overlay.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
+            
+            if let holder = overlay.childNodeWithName("buttonHolder") as? SKSpriteNode{
+                holder.position = CGPointMake(0.0, 0.0)
+                holder.size = CGSizeMake(holderWidth, holderWidth * (654.0/689.0))
+                
+                if let gameOverLabel = holder.childNodeWithName("gameOverLabel") as? SKSpriteNode{
+                    gameOverLabel.size = CGSizeMake(holderWidth/2.0, (holderWidth/2.0) * (211.0/626.0))
+                    gameOverLabel.position = CGPointMake(0.0, holder.size.height/2.0 - gameOverLabel.size.height/2.0 - holderMargin)
+                    
+                    if let homeButton = holder.childNodeWithName("homeButton") as? SKSpriteNode{
+                        homeButton.size = buttonSize
+                        homeButton.position = CGPointMake(0.0, buttonSize.height/2.0 + holderMargin - holder.size.height/2.0)
+                        
+                        if let finalScoreLabel = holder.childNodeWithName("finalScore") as? SKLabelNode{
+                            finalScoreLabel.position = CGPointMake(0.0, ((homeButton.position.y + homeButton.size.height/2.0) + (gameOverLabel.position.y - gameOverLabel.size.height/2.0))/2.0)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    func saveScoreAndExitGame(){
+        let userScore = PFObject(className: "GameScore")
+        userScore["score"] = self.currentScore
+        userScore["playerName"] = "Player1"
+        userScore["cheatMode"] = false
+        userScore.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
+            print("Score Saved!")
+        }
+        
+        self.quit()
+    }
+    
     override func didChangeSize(oldSize: CGSize) {
         // support for rotation
         updateHUDLayout()
         updatePauseOverlay()
+        updateGameOverOverlay()
     }
     
     func pause(){
-        // stop ball generation
+        // stop ball and money bag generation
         self.isPausedState = true
         
         // stop ball movement
@@ -547,6 +624,30 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             if let scoreLabel = HUD.childNodeWithName("playerScore") as? SKLabelNode{
                 scoreLabel.text = String(self.currentScore)
             }
+        }
+    }
+    
+    func loseLife(){
+        self.livesLeft -= 1
+        if let HUD = self.childNodeWithName("HUD"){
+            if let lifeLabel = HUD.childNodeWithName("playerLives") as? SKLabelNode{
+                lifeLabel.text = "x\(self.livesLeft)"
+            }
+        }
+        
+        if (self.livesLeft == 0){
+            // update icon to be dead monkey face and enter game over behavior
+            if let HUD = self.childNodeWithName("HUD"){
+                if let lifeIcon = HUD.childNodeWithName("playerLifeIcon") as? SKSpriteNode{
+                    lifeIcon.texture = SKTexture(imageNamed: "dead_monkey_icon")
+                }
+            }
+            self.pause()
+            let overlay = self.newGameOverOverlay()
+            overlay.userInteractionEnabled = true
+            self.addChild(overlay)
+            self.updateGameOverOverlay()
+            overlay.runAction(SKAction.fadeInWithDuration(1.0))
         }
     }
     
@@ -819,7 +920,13 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                 self.collectMoney(moneyNode)
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 4)){
-            print("Monkey AND BALL")
+            if let ballNode = secondBody.node{
+                self.addBrokenPieces(ballNode.position)
+                self.loseLife()
+                ballNode.physicsBody = nil
+                ballNode.removeFromParent()
+                self.bowlBallCount -= 1
+            }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 8)){
             print("Monkey AND PIN")
             enterTankMode()
@@ -831,6 +938,16 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             }
         }else{
             print("another collision: \(firstBody.categoryBitMask)w/\(secondBody.categoryBitMask)")
+        }
+    }
+    
+    func addBrokenPieces(position:CGPoint){
+        let rubble = SKSpriteNode(texture:SKTexture(imageNamed: "broken_ball"), size:CGSizeMake(15.0,15.0))
+        rubble.position = position
+        self.addChild(rubble)
+        
+        rubble.runAction(SKAction.waitForDuration(5.0)) { 
+            rubble.removeFromParent()
         }
     }
     

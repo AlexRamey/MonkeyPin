@@ -1,14 +1,14 @@
 //
-//  MPPauseOverlayScene.swift
+//  MPNewGameOverlay.swift
 //  MonkeyPin
 //
-//  Created by Alex Ramey on 4/16/16.
+//  Created by Alex Ramey on 4/18/16.
 //  Copyright © 2016 Alex Ramey. All rights reserved.
 //
 
 import SpriteKit
 
-class MPPauseOverlay: SKSpriteNode {
+class MPNewGameOverlay: SKSpriteNode {
     var heldButton:SKSpriteNode? = nil
     
     override func touchesBegan(touches: Set<UITouch>, withEvent event: UIEvent?) {
@@ -16,7 +16,7 @@ class MPPauseOverlay: SKSpriteNode {
             let location = touch.locationInNode(self)
             if let tappedNode = self.nodeAtPoint(location) as? SKSpriteNode{
                 // Check if the (child) node is a button and respond if necessary
-                if ((tappedNode.name == "resumeButton") || (tappedNode.name == "quitButton")){
+                if (tappedNode.name == "homeButton"){
                     setImageForButton(tappedNode, isPressed: true)
                     self.heldButton = tappedNode
                 }
@@ -38,8 +38,7 @@ class MPPauseOverlay: SKSpriteNode {
             }else{
                 // There is currently not a focused button
                 if let touchedButton = touchedNode as? SKSpriteNode{
-                    if ((touchedButton.name=="quitButton") ||
-                        (touchedButton.name=="resumeButton")) {
+                    if (touchedButton.name=="homeButton"){
                         setImageForButton(touchedButton, isPressed: true)
                         self.heldButton = touchedButton
                     }
@@ -53,11 +52,9 @@ class MPPauseOverlay: SKSpriteNode {
             for touch: AnyObject in touches {
                 let location = touch.locationInNode(self)
                 if let releasedNode = self.nodeAtPoint(location) as? SKSpriteNode{
-                    if (releasedNode.name == "resumeButton"){
-                        parent.unpause()
+                    if (releasedNode.name == "homeButton"){
+                        parent.saveScoreAndExitGame()
                         self.removeFromParent()
-                    }else if releasedNode.name == "quitButton" {
-                        parent.quit()
                     }
                 }
             }
@@ -67,19 +64,13 @@ class MPPauseOverlay: SKSpriteNode {
     // helper function
     func setImageForButton(btn: SKSpriteNode, isPressed: Bool){
         if (isPressed){
-            if (btn.name == "resumeButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "resume_btn_pressed")))
-            }else if (btn.name == "quitButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "quit_btn_pressed")))
+            if (btn.name == "homeButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "game_over_home_btn_pressed")))
             }
         }else{
-            if (btn.name == "resumeButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "resume_btn")))
-            }else if (btn.name == "quitButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "quit_btn")))
+            if (btn.name == "homeButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "game_over_home_btn")))
             }
         }
     }
-    
-    
 }

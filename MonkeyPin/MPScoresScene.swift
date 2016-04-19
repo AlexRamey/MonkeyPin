@@ -83,7 +83,7 @@ class MPScoresScene: SKScene {
     }
     
     func loadScores(){
-        let query = PFQuery(className: "GameScore")
+        let query = PFQuery(className: "MPScore")
         query.orderByDescending("score")
         query.limit = 10
         query.skip = self.pageNumber

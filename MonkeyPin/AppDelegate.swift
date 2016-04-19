@@ -32,7 +32,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     
     func releaseGameScene(){
-        self.retainedGamedScene = nil
+        self.retainedGameScene = nil
     }
 
     func applicationWillResignActive(application: UIApplication) {

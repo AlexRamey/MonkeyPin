@@ -553,12 +553,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         self.quit()
     }
     
-    func saveScoreToCloud(city: String){
-        let userScore = PFObject(className: "GameScore")
+    func saveScoreToCloud(location: String){
+        let userScore = PFObject(className: "MPScore")
         userScore["score"] = self.currentScore
         userScore["playerName"] = "Player1"
-        userScore["city"] = city
-        userScore["cheatMode"] = false
+        userScore["location"] = location
         userScore.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
             print("Score Saved!")
         }
@@ -785,10 +784,15 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
+    
     // MARK: MPLocationFinderDelegate Methods
-    func locationFinderDidFail(locationFinder: MPLocationFinder) {
+    func locationFinderDidFail(locationFinder: MPLocationFinder, isPermissionIssue issue: Bool) {
+        if (issue){
+            print("permission issue finder failed")
+        }else{
+            print("finder failed, not permission issue!")
+        }
         self.saveScoreToCloud("")
-        
     }
     
     func locationFinder(locationFinder: MPLocationFinder, didFindLocation location: CLLocation) {
@@ -800,11 +804,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             }else if let results = placemarks{
                 if results.count > 0{
                     print(results.first?.addressDictionary)
-                    if let city = results.first?.addressDictionary["city"]{
-                        self.saveScoreToCloud(city)
-                    }else{
-                        self.saveScoreToCloud("")
-                    }
+                    print(MPLocationFinder.leaderboardEntryForPlacemark(results[0]))
+                    self.saveScoreToCloud(MPLocationFinder.leaderboardEntryForPlacemark(results[0]))
                 }else{
                     print("empty result")
                     self.saveScoreToCloud("")

@@ -275,16 +275,4 @@ class MPHomeScene: SKScene {
             }
         }
     }
-    
-    // for testing purposes only
-    func saveRandomScore(){
-        let testObject = PFObject(className: "GameScore")
-        let randomScore = Int(arc4random_uniform(10000))
-        testObject["score"] = randomScore
-        testObject["playerName"] = "Demo"
-        testObject["cheatMode"] = false
-        testObject.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
-            print("Another score has been saved with value: \(randomScore)")
-        }
-    }
 }

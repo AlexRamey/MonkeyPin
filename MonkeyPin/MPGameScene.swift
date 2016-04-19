@@ -10,6 +10,8 @@ import SpriteKit
 import Parse
 
 class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegate, MPLocationFinderDelegate {
+    let MP_PLAYER_NAME_DEFAULTS_KEY:String = "MP_PLAYER_NAME_DEFAULTS_KEY"
+    
     // Scene Fields
     var contentCreated:Bool = false
     var lastTouch: CGPoint? = nil
@@ -556,7 +558,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func saveScoreToCloud(location: String){
         let userScore = PFObject(className: "MPScore")
         userScore["score"] = self.currentScore
-        userScore["playerName"] = "Player1"
+        userScore["playerName"] = (NSUserDefaults.standardUserDefaults().objectForKey(MP_PLAYER_NAME_DEFAULTS_KEY) as? String) ?? "Anonymous Monkey"
         userScore["location"] = location
         userScore.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
             print("Score Saved!")

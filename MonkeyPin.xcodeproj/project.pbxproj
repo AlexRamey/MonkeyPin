@@ -20,6 +20,7 @@
 		D0ED37221CC4A890003A3EE8 /* MPGameOverOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED37211CC4A890003A3EE8 /* MPGameOverOverlay.swift */; };
 		D0ED37241CC57C18003A3EE8 /* MPLocationFinder.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED37231CC57C18003A3EE8 /* MPLocationFinder.swift */; };
 		D0ED37261CC57C6F003A3EE8 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = D0ED37251CC57C6F003A3EE8 /* CoreLocation.framework */; };
+		D0ED37281CC5C265003A3EE8 /* MPScore.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0ED37271CC5C265003A3EE8 /* MPScore.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -38,6 +39,7 @@
 		D0ED37211CC4A890003A3EE8 /* MPGameOverOverlay.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPGameOverOverlay.swift; sourceTree = "<group>"; };
 		D0ED37231CC57C18003A3EE8 /* MPLocationFinder.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPLocationFinder.swift; sourceTree = "<group>"; };
 		D0ED37251CC57C6F003A3EE8 /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
+		D0ED37271CC5C265003A3EE8 /* MPScore.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = MPScore.swift; sourceTree = "<group>"; };
 		E14678F6B98C2F3AD16807DA /* Pods_MonkeyPin.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MonkeyPin.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		E3FE1F3FF057AF31CFB19267 /* Pods-MonkeyPin.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MonkeyPin.release.xcconfig"; path = "Pods/Target Support Files/Pods-MonkeyPin/Pods-MonkeyPin.release.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
@@ -101,6 +103,7 @@
 				D007CE241C9CEC6B00029A14 /* MPViewController.swift */,
 				D007CE341C9E3B7E00029A14 /* MPHomeScene.swift */,
 				D0ED37181CB5C66E003A3EE8 /* MPGameScene.swift */,
+				D0ED37271CC5C265003A3EE8 /* MPScore.swift */,
 				D0ED37161CB301F6003A3EE8 /* MPScoresScene.swift */,
 				D007CE261C9CEC6B00029A14 /* Main.storyboard */,
 				D007CE291C9CEC6B00029A14 /* Assets.xcassets */,
@@ -240,6 +243,7 @@
 				D007CE231C9CEC6B00029A14 /* AppDelegate.swift in Sources */,
 				D0ED37201CC29884003A3EE8 /* MPPauseOverlay.swift in Sources */,
 				D0ED37191CB5C66E003A3EE8 /* MPGameScene.swift in Sources */,
+				D0ED37281CC5C265003A3EE8 /* MPScore.swift in Sources */,
 				D0ED37241CC57C18003A3EE8 /* MPLocationFinder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

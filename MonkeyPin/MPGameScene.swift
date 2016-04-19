@@ -548,22 +548,37 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     }
     
     func saveScoreAndExitGame(){
-        /*
-            TODO: a local save of the score via NSKeyedArchiving
-        */
-        
         self.quit()
     }
     
-    func saveScoreToCloud(location: String){
+    func saveScore(location: String){
+        let playerName = (NSUserDefaults.standardUserDefaults().objectForKey(MP_PLAYER_NAME_DEFAULTS_KEY) as? String) ?? "Anonymous Monkey"
+        
+        // save locally
+        if let basePath = (NSSearchPathForDirectoriesInDomains(.DocumentDirectory, .UserDomainMask, true)).first{
+            if let scores = NSKeyedUnarchiver.unarchiveObjectWithFile(basePath + "/localScores") as? [MPScore]{
+                // append to already saved scores
+                var localScores = scores
+                localScores.append(MPScore(playerName: playerName, score: self.currentScore, location:location))
+                NSKeyedArchiver.archiveRootObject(localScores, toFile: basePath + "/localScores")
+            }else{
+                // no scores are saved yet
+                var localScores:[MPScore] = []
+                localScores.append(MPScore(playerName: playerName, score: self.currentScore, location:location))
+                NSKeyedArchiver.archiveRootObject(localScores, toFile: basePath + "/localScores")
+            }
+        }
+        
+        // save to the cloud
         let userScore = PFObject(className: "MPScore")
         userScore["score"] = self.currentScore
-        userScore["playerName"] = (NSUserDefaults.standardUserDefaults().objectForKey(MP_PLAYER_NAME_DEFAULTS_KEY) as? String) ?? "Anonymous Monkey"
+        userScore["playerName"] = playerName
         userScore["location"] = location
         userScore.saveInBackgroundWithBlock { (success: Bool, error: NSError?) -> Void in
             print("Score Saved!")
         }
         
+        // release this scene now that saving is complete
         if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
             print("released")
             appDelegate.releaseGameScene()
@@ -794,7 +809,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }else{
             print("finder failed, not permission issue!")
         }
-        self.saveScoreToCloud("")
+        self.saveScore("")
     }
     
     func locationFinder(locationFinder: MPLocationFinder, didFindLocation location: CLLocation) {
@@ -802,19 +817,19 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         geocoder.reverseGeocodeLocation(location) { (placemarks, error) in
             if let _ = error{
                 print("failed to geocode")
-                self.saveScoreToCloud("")
+                self.saveScore("")
             }else if let results = placemarks{
                 if results.count > 0{
                     print(results.first?.addressDictionary)
                     print(MPLocationFinder.leaderboardEntryForPlacemark(results[0]))
-                    self.saveScoreToCloud(MPLocationFinder.leaderboardEntryForPlacemark(results[0]))
+                    self.saveScore(MPLocationFinder.leaderboardEntryForPlacemark(results[0]))
                 }else{
                     print("empty result")
-                    self.saveScoreToCloud("")
+                    self.saveScore("")
                 }
             }else{
                 print("should never happen")
-                self.saveScoreToCloud("")
+                self.saveScore("")
             }
         }
     }

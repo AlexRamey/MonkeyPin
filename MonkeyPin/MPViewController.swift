@@ -16,10 +16,11 @@ class MPViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         // Do any additional setup after loading the view, typically from a nib.
+        let isTesting:Bool = false
         if let spriteView:SKView = self.view as? SKView{
-            spriteView.showsDrawCount = true
-            spriteView.showsNodeCount = true
-            spriteView.showsFPS = true
+            spriteView.showsDrawCount = isTesting
+            spriteView.showsNodeCount = isTesting
+            spriteView.showsFPS = isTesting
         }
     }
 

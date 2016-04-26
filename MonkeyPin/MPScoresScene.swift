@@ -220,9 +220,9 @@ class MPScoresScene: SKScene {
                 
                 if sortedScores.count > firstIndex{
                     for index in firstIndex ..< min(firstIndex + self.pageSize, sortedScores.count){
-                        self.names[index].text = sortedScores[index].playerName
-                        self.scores[index].text = String(sortedScores[index].score)
-                        self.locations[index].text = String(sortedScores[index].location)
+                        self.names[index%10].text = sortedScores[index].playerName
+                        self.scores[index%10].text = String(sortedScores[index].score)
+                        self.locations[index%10].text = sortedScores[index].location
                     }
                 }
             }
@@ -267,6 +267,8 @@ class MPScoresScene: SKScene {
                         toggleLabel.text = "Show Local Scores"
                         self.isLocal = false
                     }
+                    // reset page number upon toggle
+                    self.pageNumber = 0
                     self.loadScores()
                 }else if (releasedNode.name == "prevButton"){
                     if (self.pageNumber > 0){

@@ -22,6 +22,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     // Used to give bowl balls and money bags unique names
     var uniqueBallID:Int = 0
     var uniqueMoneyID:Int = 0
+    var uniqueWallID:Int = 0
     
     // Constants
     let TANK_SPEED:CGFloat = 25.0
@@ -38,6 +39,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     let moneyCategory: UInt32 = 0x1 << 1
     let ballCategory: UInt32 = 0x1 << 2
     let pinCategory: UInt32 = 0x1 << 3
+    let wallCategory: UInt32 = 0x1 << 4
     
     // Game State
     var moneyBagCount:Int = 0
@@ -45,8 +47,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
     var livesLeft:Int = 3
+    var wallLives:[String:Int] = [:]
     var isPausedState:Bool = false
     var isTankMode:Bool = false
+    var isBuildOn:Bool = false
+    var isGameOver:Bool = false
     
     // Pause State Vars
     var ballVelocities:[(String, CGVector?)] = []
@@ -112,7 +117,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         self.runAction(SKAction.repeatActionForever(makeItRain))
         
         // initiate surivalist score bonuses
-        let youEarnedIt = SKAction.sequence([SKAction.performSelector(#selector(addSurvivorScore), onTarget: self), SKAction.waitForDuration(SURVIVOR_BONUS_INTERVAL, withRange:0.0)])
+        
+        let youEarnedIt = SKAction.sequence([SKAction.waitForDuration(SURVIVOR_BONUS_INTERVAL, withRange:0.0), SKAction.performSelector(#selector(addSurvivorScore), onTarget: self)])
         self.runAction(SKAction.repeatActionForever(youEarnedIt))
     }
     
@@ -120,13 +126,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         let playerSize:CGSize = CGSizeMake(40.0,40.0)
         let playerMonkey = SKSpriteNode(texture: SKTexture(imageNamed: "player_monkey"), size:playerSize)
         playerMonkey.name = "player"
+        playerMonkey.zPosition = 1.0
         playerMonkey.position = CGPointMake(CGRectGetMidX(self.frame), CGRectGetMidY(self.frame))
         let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed: "player_monkey"), size: playerSize)
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = monkeyCategory
         physicsBody.contactTestBitMask = moneyCategory | ballCategory | pinCategory
-        physicsBody.collisionBitMask = 0x0
+        physicsBody.collisionBitMask = wallCategory
         physicsBody.usesPreciseCollisionDetection = true
         playerMonkey.physicsBody = physicsBody
         return playerMonkey
@@ -134,7 +141,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     
     func newMoneyBag()->SKSpriteNode{
         let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30.0,30.0))
-        
+        moneyBag.zPosition = 1.0
         let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30,30))
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
@@ -143,19 +150,39 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         physicsBody.collisionBitMask = 0x0
         physicsBody.usesPreciseCollisionDetection = true
         moneyBag.physicsBody = physicsBody
-        
         if (self.isTankMode){
             physicsBody.contactTestBitMask = monkeyCategory | pinCategory
         }
-        
         return moneyBag
     }
     
+    func newWall()->SKSpriteNode{
+        let height:CGFloat = 50.0
+        let wallSize:CGSize = CGSizeMake(height * 32.0/302.0, height)
+        let wall = SKSpriteNode(texture:SKTexture(imageNamed: "wall_new"), size:wallSize)
+        wall.zPosition = 1.0
+        
+        let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed:"wall_new"), size: wallSize)
+        physicsBody.affectedByGravity = false
+        physicsBody.allowsRotation = false
+        physicsBody.categoryBitMask = wallCategory
+        physicsBody.contactTestBitMask = ballCategory
+        physicsBody.collisionBitMask = monkeyCategory | ballCategory
+        physicsBody.usesPreciseCollisionDetection = true
+        physicsBody.dynamic = false
+        
+        wall.physicsBody = physicsBody
+        
+        return wall
+    }
+    
     func newBowlingPin()->SKSpriteNode{
-        let pinSize:CGSize = CGSizeMake(20.0, 20.0 * (256.0/88.0))
+        let pinHeight:CGFloat = 35.0
+        let pinSize:CGSize = CGSizeMake(pinHeight * (88.0/256.0), pinHeight)
         
         let bowlingPin = SKSpriteNode(texture:SKTexture(imageNamed: "bowling_pin"), size:pinSize)
         bowlingPin.name = "bowlingPin"
+        bowlingPin.zPosition = 1.0
         bowlingPin.position = CGPointMake(CGRectGetMidX(self.frame), 380.0)
         
         let physicsBody = SKPhysicsBody(texture: SKTexture(imageNamed:"bowling_pin"), size: pinSize)
@@ -165,6 +192,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         physicsBody.contactTestBitMask = monkeyCategory | ballCategory
         physicsBody.collisionBitMask = ballCategory
         physicsBody.usesPreciseCollisionDetection = true
+        physicsBody.dynamic = false
         bowlingPin.physicsBody = physicsBody
         
         return bowlingPin
@@ -198,7 +226,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         pinBody.allowsRotation = false
         pinBody.categoryBitMask = pinCategory
         pinBody.contactTestBitMask = moneyCategory | ballCategory
-        pinBody.collisionBitMask = ballCategory
+        pinBody.collisionBitMask = ballCategory | wallCategory
         pinBody.usesPreciseCollisionDetection = true
         pinBody.restitution = 1.0   // pin body doesn't lose energy when it bounces off objects
         pinBody.linearDamping = 0.0 // pin body doesn't lose energy from air resistance
@@ -212,7 +240,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         monkeyBody.allowsRotation = false
         monkeyBody.categoryBitMask = monkeyCategory
         monkeyBody.contactTestBitMask = moneyCategory | ballCategory
-        monkeyBody.collisionBitMask = 0x0
+        monkeyBody.collisionBitMask = wallCategory
         monkeyBody.usesPreciseCollisionDetection = true
         monkeyBody.restitution = 1.0    // monkey body doesn't lose energy when it bounces off objects
         monkeyBody.linearDamping = 0.0  // monkey body doesn't lose energy from air resistance
@@ -266,7 +294,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         
         let distance = (monkeyPlayer.size.width/2.0) + (bowlingPin.size.height/2.0)
         
-        bowlingPin.position = CGPointMake(monkeyPlayer.position.x + (distance * cos(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)),monkeyPlayer.position.y + (distance * sin(player.zRotation - CGFloat(M_PI)/2.0)))
+        bowlingPin.position = CGPointMake(monkeyPlayer.position.x + (distance * cos(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)),monkeyPlayer.position.y + (distance * sin(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)))
         
         self.addChild(bowlingPin)
         
@@ -286,7 +314,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func newHUD()->SKSpriteNode{
         let HUD = SKSpriteNode(color: UIColor.clearColor(), size: CGSizeMake(self.frame.size.width, HUDHeight))
         HUD.name = "HUD"
-        
+        HUD.zPosition = 2.0
         // note: anchorPoint coordinates are percentages, not literal values
         HUD.anchorPoint = CGPointMake(0.0,1.0)
         
@@ -297,9 +325,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         HUD.addChild(newLifeLabel(3))
         HUD.addChild(newMoneyBagIcon())
         HUD.addChild(newMoneyLabel(0))
-        // HUD.addChild(newRoundLabel(1))
+        //HUD.addChild(newRoundLabel(1))
         HUD.addChild(newScoreLabel(0))
         HUD.addChild(newPauseButton())
+        HUD.addChild(newBuildButton())
         
         return HUD
     }
@@ -355,6 +384,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         return pauseButton
     }
     
+    func newBuildButton()->SKSpriteNode{
+        let buildButton = SKSpriteNode(texture:SKTexture(imageNamed: "build_disabled"))
+        buildButton.name = "buildButton"
+        // note: anchorPoint coordinates are percentages, not literal values
+        buildButton.anchorPoint = CGPointMake(0.0,1.0)
+        return buildButton
+    }
+    
     // helper function
     func newHUDLabel(text: String)->SKLabelNode{
         let hudLabel = SKLabelNode(fontNamed:"Chalkduster")
@@ -367,6 +404,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func updateHUDLayout(){
         let margin:CGFloat = 16.0
         let tokenDim:CGFloat = 25.0
+        let pauseDim:CGFloat = 30.0
+        let buildDim:CGFloat = 40.0
         let spacing:CGFloat = 4.0
         let labelYPos:CGFloat = -margin - tokenDim
         var horizontalOffset:CGFloat = 0.0
@@ -413,9 +452,16 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         
         // update the position of the pause button
         if let pauseBtn = HUD.childNodeWithName("pauseButton") as? SKSpriteNode{
-            pauseBtn.size = CGSizeMake(tokenDim, tokenDim)
+            pauseBtn.size = CGSizeMake(pauseDim, pauseDim)
             // pin to bottom left corner
-            pauseBtn.position = CGPointMake(margin, -self.frame.height + margin + tokenDim)
+            pauseBtn.position = CGPointMake(margin, -self.frame.height + margin + pauseDim)
+        }
+        
+        // update the position of the buid button
+        if let buildBtn = HUD.childNodeWithName("buildButton") as? SKSpriteNode{
+            buildBtn.size = CGSizeMake(buildDim, buildDim)
+            // pin to bottom right corner
+            buildBtn.position = CGPointMake(self.frame.width - margin - buildDim, -self.frame.height + margin + buildDim)
         }
         
         // update the position of the score label
@@ -429,6 +475,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func newPauseOverlay()->MPPauseOverlay{
         let overlay = MPPauseOverlay()
         overlay.name = "pauseOverlay"
+        overlay.zPosition = 2.0
         overlay.color = UIColor(colorLiteralRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.75)
         
         // add button holder
@@ -489,6 +536,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func newGameOverOverlay()->MPGameOverOverlay{
         let overlay = MPGameOverOverlay()
         overlay.name = "newGameOverlay"
+        overlay.zPosition = 2.0
         overlay.color = UIColor(colorLiteralRed: 0.0, green: 0.0, blue: 0.0, alpha: 0.25)
         
         // add button holder
@@ -643,6 +691,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             if let moneyLabel = HUD.childNodeWithName("playerMoney") as? SKLabelNode{
                 moneyLabel.text = "x\(self.moneyBagScore)"
             }
+            
+            self.isBuildOn = (self.moneyBagScore > 2)
+            if let buildButton = HUD.childNodeWithName("buildButton") as? SKSpriteNode{
+                buildButton.runAction(SKAction.setTexture(SKTexture(imageNamed: (self.isBuildOn ? "build_enabled" : "build_disabled"))))
+            }
         }
     }
     
@@ -664,31 +717,40 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
         
         if (self.livesLeft == 0){
-            // update icon to be dead monkey face and enter game over behavior
-            if let HUD = self.childNodeWithName("HUD"){
-                if let lifeIcon = HUD.childNodeWithName("playerLifeIcon") as? SKSpriteNode{
-                    lifeIcon.texture = SKTexture(imageNamed: "dead_monkey_icon")
-                }
+            gameOver()
+        }
+    }
+    
+    func gameOver(){
+        guard self.isGameOver == false else{
+            return
+        }
+        self.isGameOver = true
+        
+        // update icon to be dead monkey face and enter game over behavior
+        if let HUD = self.childNodeWithName("HUD"){
+            if let lifeIcon = HUD.childNodeWithName("playerLifeIcon") as? SKSpriteNode{
+                lifeIcon.texture = SKTexture(imageNamed: "dead_monkey_icon")
             }
-            
-            // pause the action
-            self.pause()
-            
-            // bring in the game over overlay
-            let overlay = self.newGameOverOverlay()
-            overlay.userInteractionEnabled = true
-            self.addChild(overlay)
-            self.updateGameOverOverlay()
-            overlay.runAction(SKAction.fadeInWithDuration(1.0))
-            
-            // go ahead and try to fetch user location to save along with their high score
-            // initialization kicks off find location sequence
-            self.locationFinder = MPLocationFinder(delegate: self)
-            
-            if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
-                print("retained")
-                appDelegate.retainGameScene(self)
-            }
+        }
+        
+        // pause the action
+        self.pause()
+        
+        // bring in the game over overlay
+        let overlay = self.newGameOverOverlay()
+        overlay.userInteractionEnabled = true
+        self.addChild(overlay)
+        self.updateGameOverOverlay()
+        overlay.runAction(SKAction.fadeInWithDuration(1.0))
+        
+        // go ahead and try to fetch user location to save along with their high score
+        // initialization kicks off find location sequence
+        self.locationFinder = MPLocationFinder(delegate: self)
+        
+        if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
+            print("retained")
+            appDelegate.retainGameScene(self)
         }
     }
     
@@ -701,6 +763,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         // create the ball
         let ball = SKSpriteNode(texture:SKTexture(imageNamed: "bowl_ball"), size:CGSizeMake(20.0,20.0))
         ball.name = "ball\(uniqueBallID)"
+        ball.zPosition = 1.0
         uniqueBallID = (uniqueBallID + 1) % 10
         
         // randomize initial position along screen edge
@@ -728,8 +791,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = ballCategory
-        physicsBody.contactTestBitMask = monkeyCategory | pinCategory
-        physicsBody.collisionBitMask = ballCategory | pinCategory
+        physicsBody.contactTestBitMask = monkeyCategory | pinCategory | wallCategory
+        physicsBody.collisionBitMask = ballCategory | pinCategory | wallCategory
         physicsBody.usesPreciseCollisionDetection = true
         physicsBody.restitution = 1.0   // balls don't lose energy when they bounce off objects
         physicsBody.linearDamping = 0.0 // balls don't lose energy from air resistance
@@ -794,6 +857,40 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
+    func addWall(){
+        // walls cost money!
+        self.incrementMoneyScore(-3)
+        
+        let wall = newWall()
+        wall.name = "wall\(uniqueWallID)"
+        self.wallLives[wall.name!] = 15
+        uniqueWallID = (uniqueWallID + 1) % 10
+        
+        if let monkeyPlayer = self.childNodeWithName("player") as? SKSpriteNode{
+            let distance:CGFloat = 8.0
+            wall.position = CGPointMake(monkeyPlayer.position.x + (distance * cos(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)),monkeyPlayer.position.y + (distance * sin(monkeyPlayer.zRotation - CGFloat(M_PI)/2.0)))
+            wall.zRotation = monkeyPlayer.zRotation - (CGFloat(M_PI)/2.0)
+        }
+        
+        self.addChild(wall)
+    }
+    
+    func recordWallDamage(wall: SKSpriteNode){
+        let healthCount = self.wallLives[wall.name!]! - 1
+        self.wallLives[wall.name!] = healthCount
+        
+        if (healthCount == 10){
+            wall.runAction(SKAction.setTexture(SKTexture(imageNamed: "wall_damaged")))
+        }else if (healthCount == 5){
+            wall.runAction(SKAction.setTexture(SKTexture(imageNamed: "wall_weak")))
+        }else if (healthCount == 0){
+            wall.physicsBody = nil
+            wall.removeFromParent()
+            self.wallLives[wall.name!] = nil
+        }
+        
+    }
+    
     func addSurvivorScore(){
         // 50 pts for survivor bonus every SURVIVOR_BONUS_INTERVAL seconds
         if (!self.isPausedState){
@@ -801,6 +898,9 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
+    func addBallDemolitionScore(){
+        self.incrementGameScore(25)
+    }
     
     // MARK: MPLocationFinderDelegate Methods
     func locationFinderDidFail(locationFinder: MPLocationFinder, isPermissionIssue issue: Bool) {
@@ -843,6 +943,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                     tappedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn_pressed")))
                     self.heldButton = tappedNode
                     return
+                }else if ((tappedNode.name == "buildButton") && self.isBuildOn){
+                    tappedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_pressed")))
+                    self.heldButton = tappedNode
+                    return
                 }
             }
         }
@@ -858,7 +962,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             if let focusedButton = heldButton{
                 if (touchedNode != focusedButton){
                     // restore normal image
-                    focusedButton.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn")))
+                    setImageForButton(focusedButton, isPressed: false)
                     heldButton = nil
                 }else{
                     // currently a focused button and the touches are still inside it
@@ -868,7 +972,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                 // There is currently not a focused button
                 if let touchedButton = touchedNode as? SKSpriteNode{
                     if touchedButton.name == "pauseButton" {
-                        touchedButton.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn_pressed")))
+                        setImageForButton(touchedButton, isPressed: true)
+                        self.heldButton = touchedButton
+                        return
+                    }else if ((touchedButton.name == "buildButton") && self.isBuildOn){
+                        setImageForButton(touchedButton, isPressed: true)
                         self.heldButton = touchedButton
                         return
                     }
@@ -885,14 +993,19 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             if let releasedNode = self.nodeAtPoint(location) as? SKSpriteNode{
                 // Check if the (child) node is a button and respond if necessary
                 if (releasedNode.name == "pauseButton"){
-                    releasedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn")))
-                    
+                    self.heldButton = nil
+                    setImageForButton(releasedNode, isPressed: false)
                     self.pause()
                     let overlay = self.newPauseOverlay()
                     overlay.userInteractionEnabled = true
                     self.addChild(overlay)
                     self.updatePauseOverlay()
                     overlay.runAction(SKAction.fadeInWithDuration(1.0))
+                    return
+                }else if ((releasedNode.name == "buildButton") && self.isBuildOn){
+                    self.heldButton = nil
+                    setImageForButton(releasedNode, isPressed: false)
+                    addWall()
                     return
                 }
             }
@@ -905,6 +1018,23 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         for touch in touches {
             let touchLocation = touch.locationInNode(self)
             lastTouch = touchLocation
+        }
+    }
+    
+    // helper function
+    func setImageForButton(btn: SKSpriteNode, isPressed: Bool){
+        if (isPressed){
+            if (btn.name == "pauseButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn_pressed")))
+            }else if (btn.name == "buildButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_pressed")))
+            }
+        }else{
+            if (btn.name == "pauseButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn")))
+            }else if (btn.name == "buildButton"){
+                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_enabled")))
+            }
         }
     }
     
@@ -992,10 +1122,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
         
         if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 2)){
+            // Monkey + Money
             if let moneyNode = secondBody.node{
                 self.collectMoney(moneyNode)
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 4)){
+            // Monkey + Ball
             if let ballNode = secondBody.node{
                 self.addBrokenPieces(ballNode.position)
                 self.loseLife()
@@ -1004,15 +1136,41 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                 self.bowlBallCount -= 1
             }
         }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 8)){
-            print("Monkey AND PIN")
+            // Monkey + Pin
             enterTankMode()
         }else if ((firstBody.categoryBitMask == 4) && (secondBody.categoryBitMask == 8)){
-            print("BALL AND PIN")
+            // Ball + Pin
+            if self.isTankMode{
+                if let ballNode = firstBody.node{
+                    self.addBrokenPieces(ballNode.position)
+                    ballNode.physicsBody = nil
+                    ballNode.removeFromParent()
+                    self.bowlBallCount -= 1
+                    self.addBallDemolitionScore()
+                }
+            }else{
+                gameOver()
+            }
         }else if ((firstBody.categoryBitMask == 2) && (secondBody.categoryBitMask == 8)){
+            // Money + Pin
             if let moneyNode = firstBody.node{
                 self.collectMoney(moneyNode)
             }
-        }else{
+        }else if ((firstBody.categoryBitMask == 4) && (secondBody.categoryBitMask == 16)){
+            // Ball + Wall TODO: Investigate triggerring only 1 damage call per ball collision
+            if let ballNode = firstBody.node{
+                self.addBrokenPieces(ballNode.position)
+                ballNode.physicsBody = nil
+                ballNode.removeFromParent()
+                self.bowlBallCount -= 1
+                self.addBallDemolitionScore()
+            }
+            if let wallNode = secondBody.node as? SKSpriteNode{
+                print("Damage!")
+                recordWallDamage(wallNode)
+            }
+        }
+        else{
             print("another collision: \(firstBody.categoryBitMask)w/\(secondBody.categoryBitMask)")
         }
     }

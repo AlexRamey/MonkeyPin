@@ -220,7 +220,9 @@ class MPHomeScene: SKScene {
                     self.view?.presentScene(scoresScene, transition: trans)
                 }else if (releasedNode.name == "settingsButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
-                    print("transition to settings scene!")
+                    let trans = SKTransition.crossFadeWithDuration(0.0)
+                    let settingsScene = MPSettingsScene(size: self.size)
+                    self.view?.presentScene(settingsScene, transition: trans)
                 }
             }
         }

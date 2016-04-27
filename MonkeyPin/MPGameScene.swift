@@ -22,16 +22,20 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     var uniqueBallID:Int = 0
     var uniqueMoneyID:Int = 0
     var uniqueWallID:Int = 0
+    var uniqueBananaID:Int = 0
     
     // Constants
     let TANK_SPEED:CGFloat = 25.0
-    let NORMAL_SPEED:CGFloat = 75.0
-    var playerSpeed:CGFloat = 75.0
-    var ballSpeed:CGFloat = 70.0
+    let PLAYER_SPEED:CGFloat = 75.0
+    let BALL_SPEED:CGFloat = 60.0
     let HUDHeight:CGFloat = 52.0
     let MAX_NUM_BOWL_BALLS = 4
     let MAX_NUM_MONEY_BAGS = 3
-    let SURVIVOR_BONUS_INTERVAL:Double = 30.0
+    let MAX_NUM_BANANAS = 2
+    let SURVIVOR_BONUS_INTERVAL:Double = 15.0
+    let SURVIVOR_PTS_VALUE = 5
+    let BANANA_PTS_VALUE = 100
+    let BALL_BREAK_PTS_VALUE = 10
     
     // Collision Categories
     let monkeyCategory: UInt32 = 0x1 << 0
@@ -39,10 +43,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     let ballCategory: UInt32 = 0x1 << 2
     let pinCategory: UInt32 = 0x1 << 3
     let wallCategory: UInt32 = 0x1 << 4
+    let bananaCategory: UInt32 = 0x1 << 5
     
     // Game State
+    var playerSpeed:CGFloat = 75.0
     var moneyBagCount:Int = 0
     var moneyBagScore:Int = 0
+    var bananaScore:Int = 0
+    var bananaCount:Int = 0
     var bowlBallCount:Int = 0
     var currentScore:Int = 0
     var livesLeft:Int = 3
@@ -104,8 +112,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         let makeItRain = SKAction.sequence([SKAction.performSelector(#selector(addMoneyBag), onTarget: self),SKAction.waitForDuration(10.0, withRange: 5.0)])
         self.runAction(SKAction.repeatActionForever(makeItRain))
         
-        // initiate surivalist score bonuses
+        // initiate banana drops
+        let thereBeFood = SKAction.sequence([SKAction.performSelector(#selector(addBanana), onTarget: self),SKAction.waitForDuration(5.0, withRange: 1.0)])
+        self.runAction(SKAction.repeatActionForever(thereBeFood))
         
+        // initiate surivalist score bonuses
         let youEarnedIt = SKAction.sequence([SKAction.waitForDuration(SURVIVOR_BONUS_INTERVAL, withRange:0.0), SKAction.performSelector(#selector(addSurvivorScore), onTarget: self)])
         self.runAction(SKAction.repeatActionForever(youEarnedIt))
     }
@@ -120,7 +131,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = monkeyCategory
-        physicsBody.contactTestBitMask = moneyCategory | ballCategory | pinCategory
+        physicsBody.contactTestBitMask = moneyCategory | ballCategory | pinCategory | bananaCategory
         physicsBody.collisionBitMask = wallCategory
         physicsBody.usesPreciseCollisionDetection = true
         playerMonkey.physicsBody = physicsBody
@@ -130,7 +141,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func newMoneyBag()->SKSpriteNode{
         let moneyBag = SKSpriteNode(texture:SKTexture(imageNamed: "money_bag"), size:CGSizeMake(30.0,30.0))
         moneyBag.zPosition = 1.0
-        let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30,30))
+        let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed:"money_bag"), size:CGSizeMake(30.0,30.0))
         physicsBody.affectedByGravity = false
         physicsBody.allowsRotation = false
         physicsBody.categoryBitMask = moneyCategory
@@ -142,6 +153,23 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             physicsBody.contactTestBitMask = monkeyCategory | pinCategory
         }
         return moneyBag
+    }
+    
+    func newBanana()->SKSpriteNode{
+        let banana = SKSpriteNode(texture: SKTexture(imageNamed: "banana"), size: CGSizeMake(20.0, 20.0))
+        banana.zPosition = 1.0
+        let physicsBody = SKPhysicsBody(texture:SKTexture(imageNamed: "banana"), size:CGSizeMake(30.0,30.0))
+        physicsBody.affectedByGravity = false
+        physicsBody.allowsRotation = false
+        physicsBody.categoryBitMask = bananaCategory
+        physicsBody.contactTestBitMask = monkeyCategory
+        physicsBody.collisionBitMask = 0x0
+        physicsBody.usesPreciseCollisionDetection = true
+        banana.physicsBody = physicsBody
+        if (self.isTankMode){
+            physicsBody.contactTestBitMask = monkeyCategory | pinCategory
+        }
+        return banana
     }
     
     func newWall()->SKSpriteNode{
@@ -213,7 +241,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         pinBody.affectedByGravity = false
         pinBody.allowsRotation = false
         pinBody.categoryBitMask = pinCategory
-        pinBody.contactTestBitMask = moneyCategory | ballCategory
+        pinBody.contactTestBitMask = moneyCategory | ballCategory | bananaCategory
         pinBody.collisionBitMask = ballCategory | wallCategory
         pinBody.usesPreciseCollisionDetection = true
         pinBody.restitution = 1.0   // pin body doesn't lose energy when it bounces off objects
@@ -227,7 +255,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         monkeyBody.affectedByGravity = false
         monkeyBody.allowsRotation = false
         monkeyBody.categoryBitMask = monkeyCategory
-        monkeyBody.contactTestBitMask = moneyCategory | ballCategory
+        monkeyBody.contactTestBitMask = moneyCategory | ballCategory | bananaCategory
         monkeyBody.collisionBitMask = wallCategory
         monkeyBody.usesPreciseCollisionDetection = true
         monkeyBody.restitution = 1.0    // monkey body doesn't lose energy when it bounces off objects
@@ -241,6 +269,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         
         // during tank mode, money bags need to respond to pin collisions
         self.enumerateChildNodesWithName("money[0-9]") { (node, ptr) in
+            node.physicsBody?.contactTestBitMask = self.monkeyCategory | self.pinCategory
+        }
+        
+        // during tank mode, bananas need to respond to pin collisions
+        self.enumerateChildNodesWithName("banana[0-9]") { (node, ptr) in
             node.physicsBody?.contactTestBitMask = self.monkeyCategory | self.pinCategory
         }
         
@@ -284,7 +317,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         self.addChild(bowlingPin)
         
         // player is fast again!
-        self.playerSpeed = NORMAL_SPEED
+        self.playerSpeed = PLAYER_SPEED
         
         // no longer in tank mode, so money bags no longer need to care about pin collisions
         self.enumerateChildNodesWithName("money[0-9]") { (node, ptr) in
@@ -681,6 +714,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
+    func incrementBananaScore(amount:Int){
+        self.bananaScore += amount
+        self.incrementGameScore(BANANA_PTS_VALUE)
+    }
+    
     func incrementGameScore(amount:Int){
         self.currentScore += amount
         if let HUD = self.childNodeWithName("HUD"){
@@ -784,8 +822,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         let currentPosition = ball.position
         let angle = atan2(currentPosition.y - self.frame.height/2.0, currentPosition.x - self.frame.width/2.0) + CGFloat(M_PI)
         
-        let velocotyX = ballSpeed * cos(angle)
-        let velocityY = ballSpeed * sin(angle)
+        let velocotyX = BALL_SPEED * cos(angle)
+        let velocityY = BALL_SPEED * sin(angle)
         
         let newVelocity = CGVector(dx: velocotyX, dy: velocityY)
         ball.physicsBody!.velocity = newVelocity;
@@ -807,8 +845,9 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         uniqueMoneyID = (uniqueMoneyID + 1) % 10
         
         // randomize initial position
+        let margin:CGFloat = 16.0
         while (true){
-            moneyBag.position = CGPointMake(MPGameScene.skRand(moneyBag.size.width, high: self.size.width-moneyBag.size.width), MPGameScene.skRand(moneyBag.size.height, high: self.size.height-moneyBag.size.height))
+            moneyBag.position = CGPointMake(MPGameScene.skRand(moneyBag.size.width+margin, high: self.size.width-moneyBag.size.width-margin), MPGameScene.skRand(moneyBag.size.height+margin, high: self.size.height-moneyBag.size.height-margin))
             
             if let player = self.childNodeWithName("player") as? SKSpriteNode{
                 let distance = hypotf(Float(moneyBag.position.x - player.position.x), Float(moneyBag.position.y - player.position.y))
@@ -823,19 +862,58 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         
         // print("old money: money\((uniqueMoneyID - MAX_NUM_MONEY_BAGS + 10) % 10)")
         if let oldBag = self.childNodeWithName("money\((uniqueMoneyID - MAX_NUM_MONEY_BAGS + 10) % 10)") as? SKSpriteNode{
-            self.initiateMoneyExpiration(oldBag)
+            self.initiateNodeExpiration(oldBag)
         }
     }
     
-    func initiateMoneyExpiration(node: SKSpriteNode){
-        // walking animation
+    func addBanana(){
+        guard ((self.moneyBagCount < MAX_NUM_BANANAS) && (self.isPausedState == false)) else{
+            // we're at our maximum banana count already or game is paused . . .
+            return
+        }
+        
+        let banana = newBanana()
+        banana.name = "banana\(uniqueBananaID)"
+        uniqueBananaID = (uniqueBananaID + 1) % 10
+        
+        // randomize initial position
+        let margin:CGFloat = 16.0
+        while (true){
+            banana.position = CGPointMake(MPGameScene.skRand(banana.size.width + margin, high: self.size.width-banana.size.width - margin), MPGameScene.skRand(banana.size.height + margin, high: self.size.height-banana.size.height-margin))
+            
+            if let player = self.childNodeWithName("player") as? SKSpriteNode{
+                let distance = hypotf(Float(banana.position.x - player.position.x), Float(banana.position.y - player.position.y))
+                if distance > Float(player.size.height){
+                    break
+                }
+            }
+        }
+        
+        self.addChild(banana)
+        self.bananaCount += 1
+        
+        if let oldBanana = self.childNodeWithName("banana\((uniqueBananaID - MAX_NUM_BANANAS + 10) % 10)") as? SKSpriteNode{
+            self.initiateNodeExpiration(oldBanana)
+        }
+    }
+    
+    func initiateNodeExpiration(node: SKSpriteNode){
+        guard let nodeTexture = node.texture else{
+            return
+        }
         var expirationAnimation:[SKTexture] = []
-        expirationAnimation.append(SKTexture(imageNamed: "money_bag"))
+        expirationAnimation.append(nodeTexture)
         expirationAnimation.append(SKTexture(imageNamed: "transparent"))
-        let expiration = SKAction.repeatAction(SKAction.animateWithTextures(expirationAnimation, timePerFrame: 0.0625), count: 32)
+        let expiration = SKAction.repeatAction(SKAction.animateWithTextures(expirationAnimation, timePerFrame: 0.0625), count: 16)
         node.runAction(expiration) { 
             node.removeFromParent()
-            self.moneyBagCount -= 1
+            if let name = node.name{
+                if name.containsString("banana"){
+                    self.bananaCount -= 1
+                }else if name.containsString("money"){
+                    self.moneyBagCount -= 1
+                }
+            }
         }
     }
     
@@ -887,14 +965,13 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     }
     
     func addSurvivorScore(){
-        // 50 pts for survivor bonus every SURVIVOR_BONUS_INTERVAL seconds
         if (!self.isPausedState){
-            self.incrementGameScore(50)
+            self.incrementGameScore(SURVIVOR_PTS_VALUE)
         }
     }
     
     func addBallDemolitionScore(){
-        self.incrementGameScore(25)
+        self.incrementGameScore(BALL_BREAK_PTS_VALUE)
     }
     
     // MARK: MPLocationFinderDelegate Methods
@@ -1183,6 +1260,16 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                     })
                 }
             }
+        }else if ((firstBody.categoryBitMask == 8) && (secondBody.categoryBitMask == 32)){
+            // Pin + Banana
+            if let bananaNode = secondBody.node{
+                self.collectBanana(bananaNode)
+            }
+        }else if ((firstBody.categoryBitMask == 1) && (secondBody.categoryBitMask == 32)){
+            // Monkey + Banana
+            if let bananaNode = secondBody.node{
+                self.collectBanana(bananaNode)
+            }
         }
         else{
             print("another collision: \(firstBody.categoryBitMask)w/\(secondBody.categoryBitMask)")
@@ -1205,5 +1292,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         moneyBag.physicsBody = nil
         moneyBag.removeFromParent()
         self.moneyBagCount -= 1
+    }
+    
+    func collectBanana(banana: SKNode){
+        self.incrementBananaScore(1)
+        banana.physicsBody = nil
+        banana.removeFromParent()
+        self.bananaCount -= 1
     }
 }

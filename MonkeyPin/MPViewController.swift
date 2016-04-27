@@ -8,10 +8,12 @@
 
 import UIKit
 import SpriteKit
+import AVFoundation
 
 class MPViewController: UIViewController {
     let MP_PLAYER_NAME_DEFAULTS_KEY:String = "MP_PLAYER_NAME_DEFAULTS_KEY"
     var isPresentingScene:Bool = false
+    var backgroundMusicPlayer:AVAudioPlayer? = nil
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -21,6 +23,18 @@ class MPViewController: UIViewController {
             spriteView.showsDrawCount = isTesting
             spriteView.showsNodeCount = isTesting
             spriteView.showsFPS = isTesting
+        }
+        
+        if let url = NSBundle.mainBundle().URLForResource("jungle", withExtension: "wav"){
+            do{
+                let audioPlayer = try AVAudioPlayer(contentsOfURL: url)
+                audioPlayer.numberOfLoops = -1
+                audioPlayer.prepareToPlay()
+                audioPlayer.play()
+                self.backgroundMusicPlayer = audioPlayer
+            }catch{
+                print("uh-oh")
+            }
         }
     }
 

@@ -16,7 +16,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     var contentCreated:Bool = false
     var lastTouch: CGPoint? = nil
     var heldButton:SKSpriteNode? = nil
-    var doubleTapGesture:UITapGestureRecognizer? = nil
     var locationFinder:MPLocationFinder? = nil
     
     // Used to give bowl balls and money bags unique names
@@ -48,6 +47,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     var currentScore:Int = 0
     var livesLeft:Int = 3
     var wallLives:[String:Int] = [:]
+    var harmlessBalls:[String] = []
     var isPausedState:Bool = false
     var isTankMode:Bool = false
     var isBuildOn:Bool = false
@@ -70,18 +70,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             self.createSceneContents()
             self.contentCreated = true
             physicsWorld.contactDelegate = self
-        }
-        
-        self.doubleTapGesture = UITapGestureRecognizer(target: self, action: #selector(doubleTap))
-        self.doubleTapGesture?.numberOfTapsRequired = 2
-        if let recognizer = self.doubleTapGesture{
-            view.addGestureRecognizer(recognizer)
-        }
-    }
-    
-    override func willMoveFromView(view: SKView) {
-        if let recognizer = self.doubleTapGesture{
-            view.removeGestureRecognizer(recognizer)
         }
     }
     
@@ -257,10 +245,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
         
         self.isTankMode = true
-    }
-    
-    func doubleTap(recognizer: UITapGestureRecognizer){
-        self.exitTankMode()
+        updateActionButtonImage()
     }
     
     func exitTankMode(){
@@ -307,6 +292,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
         
         self.isTankMode = false
+        self.updateActionButtonImage()
     }
     
 /*-----------------------------Heads Up Display (HUD)----------------------------*/
@@ -328,7 +314,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         //HUD.addChild(newRoundLabel(1))
         HUD.addChild(newScoreLabel(0))
         HUD.addChild(newPauseButton())
-        HUD.addChild(newBuildButton())
+        HUD.addChild(newActionButton())
         
         return HUD
     }
@@ -384,12 +370,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         return pauseButton
     }
     
-    func newBuildButton()->SKSpriteNode{
-        let buildButton = SKSpriteNode(texture:SKTexture(imageNamed: "build_disabled"))
-        buildButton.name = "buildButton"
+    func newActionButton()->SKSpriteNode{
+        let actionButton = SKSpriteNode(texture:SKTexture(imageNamed: "build_disabled"))
+        actionButton.name = "actionButton"
         // note: anchorPoint coordinates are percentages, not literal values
-        buildButton.anchorPoint = CGPointMake(0.0,1.0)
-        return buildButton
+        actionButton.anchorPoint = CGPointMake(0.0,1.0)
+        return actionButton
     }
     
     // helper function
@@ -405,7 +391,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         let margin:CGFloat = 16.0
         let tokenDim:CGFloat = 25.0
         let pauseDim:CGFloat = 30.0
-        let buildDim:CGFloat = 40.0
+        let actionDim:CGFloat = 40.0
         let spacing:CGFloat = 4.0
         let labelYPos:CGFloat = -margin - tokenDim
         var horizontalOffset:CGFloat = 0.0
@@ -458,10 +444,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
         
         // update the position of the buid button
-        if let buildBtn = HUD.childNodeWithName("buildButton") as? SKSpriteNode{
-            buildBtn.size = CGSizeMake(buildDim, buildDim)
+        if let actionBtn = HUD.childNodeWithName("actionButton") as? SKSpriteNode{
+            actionBtn.size = CGSizeMake(actionDim, actionDim)
             // pin to bottom right corner
-            buildBtn.position = CGPointMake(self.frame.width - margin - buildDim, -self.frame.height + margin + buildDim)
+            actionBtn.position = CGPointMake(self.frame.width - margin - actionDim, -self.frame.height + margin + actionDim)
         }
         
         // update the position of the score label
@@ -691,11 +677,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             if let moneyLabel = HUD.childNodeWithName("playerMoney") as? SKLabelNode{
                 moneyLabel.text = "x\(self.moneyBagScore)"
             }
-            
-            self.isBuildOn = (self.moneyBagScore > 2)
-            if let buildButton = HUD.childNodeWithName("buildButton") as? SKSpriteNode{
-                buildButton.runAction(SKAction.setTexture(SKTexture(imageNamed: (self.isBuildOn ? "build_enabled" : "build_disabled"))))
-            }
+            self.updateActionButtonImage()
         }
     }
     
@@ -875,7 +857,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         self.addChild(wall)
     }
     
-    func recordWallDamage(wall: SKSpriteNode){
+    func recordWallDamage(wall: SKSpriteNode, incidentBall ball: SKSpriteNode){
+        if (self.harmlessBalls.contains(ball.name!)){
+            print("HARMLESS: \(ball.name!)")
+            return
+        }
+        print("Damage from \(ball.name!)!")
         let healthCount = self.wallLives[wall.name!]! - 1
         self.wallLives[wall.name!] = healthCount
         
@@ -887,6 +874,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             wall.physicsBody = nil
             wall.removeFromParent()
             self.wallLives[wall.name!] = nil
+        }
+        self.harmlessBalls.append(ball.name!)
+        // after .1 seconds, remove this ball from the list of harmless balls
+        dispatch_after(dispatch_time(0, (100000000)), dispatch_get_main_queue()) { 
+            if let index = self.harmlessBalls.indexOf(ball.name!){
+                print("HARMFULL: \(ball.name)")
+                self.harmlessBalls.removeAtIndex(index)
+            }
         }
         
     }
@@ -940,11 +935,11 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             let location = touch.locationInNode(self)
             if let tappedNode = self.nodeAtPoint(location) as? SKSpriteNode{
                 if tappedNode.name == "pauseButton"{
-                    tappedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn_pressed")))
+                    setImageForButton(tappedNode, isPressed: true)
                     self.heldButton = tappedNode
                     return
-                }else if ((tappedNode.name == "buildButton") && self.isBuildOn){
-                    tappedNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_pressed")))
+                }else if ((tappedNode.name == "actionButton") && (self.isBuildOn || self.isTankMode)){
+                    setImageForButton(tappedNode, isPressed: true)
                     self.heldButton = tappedNode
                     return
                 }
@@ -975,7 +970,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                         setImageForButton(touchedButton, isPressed: true)
                         self.heldButton = touchedButton
                         return
-                    }else if ((touchedButton.name == "buildButton") && self.isBuildOn){
+                    }else if ((touchedButton.name == "actionButton") && (self.isBuildOn || self.isTankMode)){
                         setImageForButton(touchedButton, isPressed: true)
                         self.heldButton = touchedButton
                         return
@@ -1002,10 +997,14 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                     self.updatePauseOverlay()
                     overlay.runAction(SKAction.fadeInWithDuration(1.0))
                     return
-                }else if ((releasedNode.name == "buildButton") && self.isBuildOn){
+                }else if ((releasedNode.name == "actionButton") && (self.isBuildOn || self.isTankMode)){
                     self.heldButton = nil
                     setImageForButton(releasedNode, isPressed: false)
-                    addWall()
+                    if (self.isBuildOn){
+                        addWall()
+                    }else{
+                        exitTankMode()
+                    }
                     return
                 }
             }
@@ -1021,19 +1020,39 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         }
     }
     
-    // helper function
+    // helper to find the actionButton and call setImageForButton() on it
+    func updateActionButtonImage(){
+        self.isBuildOn = (self.moneyBagScore > 2) && (!self.isTankMode)
+        if let HUD = self.childNodeWithName("HUD"){
+            if let actionButton = HUD.childNodeWithName("actionButton") as? SKSpriteNode{
+                self.setImageForButton(actionButton, isPressed: false)
+            }
+        }
+    }
+    
+    // helper function to update button images
     func setImageForButton(btn: SKSpriteNode, isPressed: Bool){
         if (isPressed){
             if (btn.name == "pauseButton"){
                 btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn_pressed")))
-            }else if (btn.name == "buildButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_pressed")))
+            }else if (btn.name == "actionButton"){
+                if (!isTankMode){
+                    btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_pressed")))
+                }else{
+                    btn.runAction(SKAction.setTexture(SKTexture(imageNamed:"drop_btn_pressed")))
+                }
             }
         }else{
             if (btn.name == "pauseButton"){
                 btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "pause_btn")))
-            }else if (btn.name == "buildButton"){
-                btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_enabled")))
+            }else if (btn.name == "actionButton"){
+                if (isTankMode){
+                    btn.runAction(SKAction.setTexture(SKTexture(imageNamed:"drop_btn")))
+                }else if (self.isBuildOn){
+                    btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_enabled")))
+                }else{
+                    btn.runAction(SKAction.setTexture(SKTexture(imageNamed: "build_disabled")))
+                }
             }
         }
     }
@@ -1157,17 +1176,12 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
                 self.collectMoney(moneyNode)
             }
         }else if ((firstBody.categoryBitMask == 4) && (secondBody.categoryBitMask == 16)){
-            // Ball + Wall TODO: Investigate triggerring only 1 damage call per ball collision
-            if let ballNode = firstBody.node{
-                self.addBrokenPieces(ballNode.position)
-                ballNode.physicsBody = nil
-                ballNode.removeFromParent()
-                self.bowlBallCount -= 1
-                self.addBallDemolitionScore()
-            }
             if let wallNode = secondBody.node as? SKSpriteNode{
-                print("Damage!")
-                recordWallDamage(wallNode)
+                if let ballNode = firstBody.node as? SKSpriteNode{
+                    dispatch_async(dispatch_get_main_queue(), {
+                        self.recordWallDamage(wallNode, incidentBall: ballNode)
+                    })
+                }
             }
         }
         else{

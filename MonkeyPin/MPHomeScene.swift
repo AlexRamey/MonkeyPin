@@ -237,7 +237,6 @@ class MPHomeScene: SKScene {
                     let trans = SKTransition.crossFadeWithDuration(1.0)
                     let gameScene = MPGameScene(size:self.size)
                     self.view?.presentScene(gameScene, transition:trans)
-                    print("transition to play scene!")
                 }else if (releasedNode.name == "scoresButtonNode"){
                     setImageForButton(releasedNode, isPressed: false)
                     let trans = SKTransition.flipVerticalWithDuration(1.0)

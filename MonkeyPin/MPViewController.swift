@@ -36,7 +36,7 @@ class MPViewController: UIViewController {
                 }
                 self.backgroundMusicPlayer = audioPlayer
             }catch{
-                print("uh-oh")
+                print("uh-oh . . . audio player exception")
             }
         }
         

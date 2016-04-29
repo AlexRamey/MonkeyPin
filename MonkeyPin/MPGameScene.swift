@@ -27,7 +27,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     // Constants
     let TANK_SPEED:CGFloat = 25.0
     let PLAYER_SPEED:CGFloat = 75.0
-    let BALL_SPEED:CGFloat = 60.0
     let HUDHeight:CGFloat = 52.0
     let MAX_NUM_BOWL_BALLS = 4
     let MAX_NUM_MONEY_BAGS = 3
@@ -35,7 +34,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     let SURVIVOR_BONUS_INTERVAL:Double = 15.0
     let SURVIVOR_PTS_VALUE = 5
     let BANANA_PTS_VALUE = 100
-    let BALL_BREAK_PTS_VALUE = 10
+    
+    // Vary with difficulty
+    var BALL_SPEED:CGFloat = 60.0       // varies with difficulty: 30,60,80
+    var BALL_BREAK_PTS_VALUE = 10       // varies with difficulty  5,10,25
     
     // Collision Categories
     let monkeyCategory: UInt32 = 0x1 << 0
@@ -75,9 +77,28 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     
     override func didMoveToView(view: SKView) {
         if (self.contentCreated == false){
+            // first configure difficulty-based settings
+            self.configureDifficultyBasedSettings()
+            // then create the scene contents . . .
             self.createSceneContents()
             self.contentCreated = true
             physicsWorld.contactDelegate = self
+        }
+    }
+    
+    func configureDifficultyBasedSettings(){
+        let difficulty = NSUserDefaults.standardUserDefaults().integerForKey("MP_GAME_DIFFICULTY_DEFAULTS_KEY")
+        
+        switch difficulty {
+        case 0:
+            self.BALL_SPEED = 30.0
+            self.BALL_BREAK_PTS_VALUE = 5
+        case 1:
+            self.BALL_SPEED = 60.0
+            self.BALL_BREAK_PTS_VALUE = 10
+        default:
+            self.BALL_SPEED = 80.0
+            self.BALL_BREAK_PTS_VALUE = 25
         }
     }
     
@@ -647,7 +668,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         
         // release this scene now that saving is complete
         if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
-            print("released")
+            // print("released")
             appDelegate.releaseGameScene()
         }
     }
@@ -668,7 +689,6 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
             self.ballVelocities.append((ball.name!, ball.physicsBody?.velocity))
             ball.paused = true
             ball.physicsBody?.resting = true
-            print(ball.name)
         }
         
         
@@ -769,7 +789,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         self.locationFinder = MPLocationFinder(delegate: self)
         
         if let appDelegate = UIApplication.sharedApplication().delegate as? AppDelegate{
-            print("retained")
+            // print("retained")
             appDelegate.retainGameScene(self)
         }
     }
@@ -937,10 +957,10 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     
     func recordWallDamage(wall: SKSpriteNode, incidentBall ball: SKSpriteNode){
         if (self.harmlessBalls.contains(ball.name!)){
-            print("HARMLESS: \(ball.name!)")
+            // print("HARMLESS: \(ball.name!)")
             return
         }
-        print("Damage from \(ball.name!)!")
+        // print("Damage from \(ball.name!)!")
         let healthCount = self.wallLives[wall.name!]! - 1
         self.wallLives[wall.name!] = healthCount
         
@@ -957,7 +977,7 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
         // after .1 seconds, remove this ball from the list of harmless balls
         dispatch_after(dispatch_time(0, (100000000)), dispatch_get_main_queue()) { 
             if let index = self.harmlessBalls.indexOf(ball.name!){
-                print("HARMFULL: \(ball.name)")
+                // print("HARMFULL: \(ball.name)")
                 self.harmlessBalls.removeAtIndex(index)
             }
         }

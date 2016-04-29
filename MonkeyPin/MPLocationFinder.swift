@@ -92,12 +92,12 @@ class MPLocationFinder: NSObject, CLLocationManagerDelegate {
     }
     
     func locationManager(manager: CLLocationManager, didChangeAuthorizationStatus status: CLAuthorizationStatus) {
-        print("\(status.rawValue)")
+        // print("\(status.rawValue)")
         switch status{
         case .NotDetermined:
             if let locationManager = self.locationManager{
                 // it's up for grabs
-                print("not determined")
+                // print("not determined")
                 locationManager.requestWhenInUseAuthorization()
             }
         case .AuthorizedWhenInUse:

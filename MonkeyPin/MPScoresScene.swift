@@ -191,7 +191,7 @@ class MPScoresScene: SKScene {
             if (error != nil){
                 print(error)
             }else if let result = objects{
-                print(result)
+                // print(result)
                 for index in 0 ..< result.count {
                     let object:PFObject = result[index]
                     self.names[index].text = object["playerName"] as? String

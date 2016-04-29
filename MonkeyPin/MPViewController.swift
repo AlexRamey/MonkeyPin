@@ -29,15 +29,24 @@ class MPViewController: UIViewController {
             do{
                 let audioPlayer = try AVAudioPlayer(contentsOfURL: url)
                 audioPlayer.numberOfLoops = -1
-                audioPlayer.prepareToPlay()
-                audioPlayer.play()
+                if NSUserDefaults.standardUserDefaults().integerForKey("MP_AUDIO_ON_DEFAULTS_KEY") == 1{
+                    // if audio is on
+                    audioPlayer.prepareToPlay()
+                    audioPlayer.play()
+                }
                 self.backgroundMusicPlayer = audioPlayer
             }catch{
                 print("uh-oh")
             }
         }
         
+        // handle shake events
         self.becomeFirstResponder()
+        
+        // listen for audio toggles
+        NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(turnAudioON), name: "audioON", object: nil)
+        NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(turnAudioOFF), name: "audioOFF", object: nil)
+        
     }
     
     override func canBecomeFirstResponder() -> Bool {
@@ -50,7 +59,24 @@ class MPViewController: UIViewController {
             NSNotificationCenter.defaultCenter().postNotificationName("shake", object: nil)
         }
     }
+    
+    func turnAudioON(notification: NSNotification){
+        if let player = self.backgroundMusicPlayer{
+            player.prepareToPlay()
+            player.play()
+        }
+    }
+    
+    func turnAudioOFF(notification: NSNotification){
+        if let player = self.backgroundMusicPlayer{
+            player.stop()
+        }
+    }
 
+    deinit {
+        NSNotificationCenter.defaultCenter().removeObserver(self)
+    }
+    
     override func viewWillAppear(animated: Bool) {
         super.viewWillAppear(true)
         if (!isPresentingScene){
@@ -89,6 +115,8 @@ class MPViewController: UIViewController {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
     }
+    
+    
 
     // helper function to present UIAlertController to prompt user for player name input
     func promptForPlayerName(){

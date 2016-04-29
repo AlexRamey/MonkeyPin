@@ -14,6 +14,7 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
     var contentCreated:Bool = false
     var nameInput:UITextField? = nil
     var difficultyInput:UISegmentedControl? = nil
+    var audioToggle:UISwitch? = nil
     
     // constants
     let MP_PLAYER_NAME_DEFAULTS_KEY:String = "MP_PLAYER_NAME_DEFAULTS_KEY"
@@ -22,7 +23,7 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
     
     override func didMoveToView(view: SKView) {
         if (self.contentCreated == false){
-            // add name input label
+            // add name input field
             self.nameInput = UITextField()
             self.nameInput?.returnKeyType = .Done
             self.nameInput?.font = UIFont(name: "Chalkduster", size: 14.0)
@@ -42,6 +43,14 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
             self.difficultyInput?.addTarget(self, action: #selector(indexChanged), forControlEvents: .ValueChanged)
             self.difficultyInput?.setTitleTextAttributes([NSFontAttributeName : UIFont(name: "Chalkduster", size: 14.0)!], forState: .Normal)
             view.addSubview(self.difficultyInput!)
+            
+            // add audio toggle switch
+            self.audioToggle = UISwitch()
+            self.audioToggle?.on = (NSUserDefaults.standardUserDefaults().integerForKey("MP_AUDIO_ON_DEFAULTS_KEY") == 1)
+            self.audioToggle?.tintColor = UIColor.whiteColor()
+            self.audioToggle?.addTarget(self, action: #selector(audioToggled), forControlEvents: .ValueChanged)
+            view.addSubview(self.audioToggle!)
+            
             self.createSceneContents()
             self.contentCreated = true
         }
@@ -50,6 +59,7 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
     override func willMoveFromView(view: SKView) {
         self.nameInput?.removeFromSuperview()
         self.difficultyInput?.removeFromSuperview()
+        self.audioToggle?.removeFromSuperview()
     }
     
     func createSceneContents(){
@@ -79,6 +89,14 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
         difficultyInputLabel.text = "Change Difficulty:"
         self.addChild(difficultyInputLabel)
         
+        let audioToggleLabel = SKLabelNode(fontNamed: "Chalkduster")
+        audioToggleLabel.name = "audioToggleLabel"
+        audioToggleLabel.fontSize = 14
+        audioToggleLabel.verticalAlignmentMode = .Center
+        audioToggleLabel.fontColor = SKColor.whiteColor()
+        audioToggleLabel.text = "Toggle Game Audio: "
+        self.addChild(audioToggleLabel)
+        
         self.updateViews()
     }
     
@@ -104,6 +122,14 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
                     
                     if let segmentedControl = self.difficultyInput{
                         segmentedControl.frame = CGRectMake(sideMargin, self.frame.size.height - difficultyInputLabel.position.y + (difficultyInputLabel.frame.size.height/2.0) + spacing, self.frame.size.width - (sideMargin*2), 30.0)
+                        
+                        if let audioToggleLabel = self.childNodeWithName("audioToggleLabel"){
+                            audioToggleLabel.position = CGPointMake(sideMargin + (audioToggleLabel.frame.size.width/2.0), difficultyInputLabel.position.y - (difficultyInputLabel.frame.size.height/2.0) - spacing - segmentedControl.frame.size.height - spacing - (audioToggleLabel.frame.size.height/2.0))
+                            
+                            if let audioToggle = self.audioToggle{
+                                audioToggle.frame = CGRectMake(sideMargin + audioToggleLabel.frame.size.width + spacing, self.frame.size.height - audioToggleLabel.position.y - (audioToggle.frame.size.height/2.0), 120.0, 30.0)
+                            }
+                        }
                     }
                 }
             }
@@ -138,6 +164,18 @@ class MPSettingsScene: SKScene, UITextFieldDelegate {
     
     @IBAction func indexChanged(sender:UISegmentedControl){
         NSUserDefaults.standardUserDefaults().setInteger(sender.selectedSegmentIndex, forKey: MP_GAME_DIFFICULTY_DEFAULTS_KEY)
+    }
+    
+    @IBAction func audioToggled(sender:UISwitch){
+        let currentSetting = NSUserDefaults.standardUserDefaults().integerForKey("MP_AUDIO_ON_DEFAULTS_KEY")
+        
+        if (currentSetting == 1){
+            NSNotificationCenter.defaultCenter().postNotificationName("audioOFF", object: nil)
+        }else{
+            NSNotificationCenter.defaultCenter().postNotificationName("audioON", object: nil)
+        }
+        
+        NSUserDefaults.standardUserDefaults().setInteger((currentSetting+1)%2, forKey: "MP_AUDIO_ON_DEFAULTS_KEY")
     }
     
     // MARK - UITextFieldDelegate Methods

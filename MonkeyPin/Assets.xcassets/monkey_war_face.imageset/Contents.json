@@ -2,12 +2,12 @@
   "images" : [
     {
       "idiom" : "universal",
-      "filename" : "monkey_walk_l2.png",
+      "filename" : "monkey_faceforward.png",
       "scale" : "1x"
     },
     {
       "idiom" : "universal",
-      "filename" : "monkey_walk_l2@2x.png",
+      "filename" : "monkey_faceforward@2x.png",
       "scale" : "2x"
     },
     {

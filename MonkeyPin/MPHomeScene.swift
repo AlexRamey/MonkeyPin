@@ -13,11 +13,34 @@ class MPHomeScene: SKScene {
     var contentCreated:Bool = false
     var buttons:[SKSpriteNode] = []
     var heldButton:SKSpriteNode? = nil
+    var isMonkeyDoneWalking = false
     
     override func didMoveToView(view: SKView) {
         if (self.contentCreated == false){
             self.createSceneContents()
             self.contentCreated = true
+            
+            // register to receive notifications when the user shakes the device
+            NSNotificationCenter.defaultCenter().addObserver(self, selector: #selector(handleShake), name: "shake", object: nil)
+        }
+    }
+    
+    override func willMoveFromView(view: SKView) {
+        NSNotificationCenter.defaultCenter().removeObserver(self)
+    }
+    
+    func handleShake(notification: NSNotification){
+        // respond to user device shake
+        if (isMonkeyDoneWalking){
+            if let monkeyNode = self.childNodeWithName("walkingMonkeyNode") as? SKSpriteNode{
+                // walking animation
+                var animation:[SKTexture] = []
+                animation.append(SKTexture(imageNamed: "monkey_arms_up"))
+                animation.append(SKTexture(imageNamed: "monkey_war_face"))
+                animation.append(SKTexture(imageNamed: "home_monkey"))
+                let action = SKAction.repeatAction(SKAction.animateWithTextures(animation, timePerFrame: 0.5), count: 2)
+                monkeyNode.runAction(action)
+            }
         }
     }
     
@@ -73,6 +96,7 @@ class MPHomeScene: SKScene {
         if let monkeyNode = self.childNodeWithName("walkingMonkeyNode") as? SKSpriteNode{
             monkeyNode.removeAllActions()
             monkeyNode.size = CGSizeMake(50, 50 * (168.0/140.0))
+            self.isMonkeyDoneWalking = false
             
             // walking animation
             var walkingRightAnimation:[SKTexture] = []
@@ -94,6 +118,7 @@ class MPHomeScene: SKScene {
                 monkeyNode.removeActionForKey("rightWalk")
                 monkeyNode.size = CGSizeMake(monkeyNode.size.height, monkeyNode.size.height)
                 monkeyNode.runAction(SKAction.setTexture(SKTexture(imageNamed: "home_monkey")))
+                self.isMonkeyDoneWalking = true
             })
         }
     }

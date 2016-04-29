@@ -36,6 +36,19 @@ class MPViewController: UIViewController {
                 print("uh-oh")
             }
         }
+        
+        self.becomeFirstResponder()
+    }
+    
+    override func canBecomeFirstResponder() -> Bool {
+        return true
+    }
+    
+    override func motionEnded(motion: UIEventSubtype, withEvent event: UIEvent?) {
+        if (motion == .MotionShake){
+            // Post a notification any time the user shakes the device
+            NSNotificationCenter.defaultCenter().postNotificationName("shake", object: nil)
+        }
     }
 
     override func viewWillAppear(animated: Bool) {

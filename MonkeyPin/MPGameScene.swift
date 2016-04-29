@@ -423,8 +423,8 @@ class MPGameScene: SKScene, SKPhysicsContactDelegate, UIGestureRecognizerDelegat
     func updateHUDLayout(){
         let margin:CGFloat = 16.0
         let tokenDim:CGFloat = 25.0
-        let pauseDim:CGFloat = 30.0
-        let actionDim:CGFloat = 40.0
+        let pauseDim:CGFloat = 35.0
+        let actionDim:CGFloat = 50.0
         let spacing:CGFloat = 4.0
         let labelYPos:CGFloat = -margin - tokenDim
         var horizontalOffset:CGFloat = 0.0

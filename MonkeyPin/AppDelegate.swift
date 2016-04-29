@@ -15,7 +15,7 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var retainedGameScene:MPGameScene?
     
     override static func initialize(){
-        NSUserDefaults.standardUserDefaults().registerDefaults(["MP_GAME_DIFFICULTY_DEFAULTS_KEY" : 1])
+        NSUserDefaults.standardUserDefaults().registerDefaults(["MP_GAME_DIFFICULTY_DEFAULTS_KEY" : 1, "MP_AUDIO_ON_DEFAULTS_KEY" : 1])
     }
     
     func application(application: UIApplication, didFinishLaunchingWithOptions launchOptions: [NSObject: AnyObject]?) -> Bool {
